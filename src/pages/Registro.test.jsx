@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Swal from 'sweetalert2';
@@ -76,6 +76,13 @@ describe('Registro', () => {
       expect(screen.queryByRole('option', { name: 'Iquique' })).not.toBeInTheDocument(); // es de Tarapacá
     });
   });
+    it('permite ingresar la fecha de nacimiento opcional', async () => {
+      const { user } = renderRegistro();
+      const inputFecha = screen.getByLabelText(/fecha de nacimiento/i);
+      await user.type(inputFecha, '2000-01-01');
+      expect(inputFecha).toHaveValue('2000-01-01');
+    });
+  
 
   describe('validaciones', () => {
     it('rechaza un RUN inválido y no llama a signUp', async () => {
@@ -84,7 +91,6 @@ describe('Registro', () => {
       expect(Swal.fire).toHaveBeenCalledWith('RUN Inválido', expect.any(String), 'error');
       expect(signUp).not.toHaveBeenCalled();
     });
-
     it('rechaza un dominio de correo no permitido', async () => {
       const { signUp, user } = renderRegistro();
       await completar(user, { correo: 'ana@hotmail.com', confirmarCorreo: 'ana@hotmail.com' });
@@ -92,10 +98,28 @@ describe('Registro', () => {
       expect(signUp).not.toHaveBeenCalled();
     });
 
+   it('rechaza el envío si faltan campos obligatorios', () => {
+      const { signUp } = renderRegistro();
+      
+      // Obtenemos el <form> a través del botón 'Registrarse'
+      const form = screen.getByRole('button', { name: 'Registrarse' }).form;
+      fireEvent.submit(form);
+
+      expect(Swal.fire).toHaveBeenCalledWith('Campos Incompletos', expect.any(String), 'error');
+      expect(signUp).not.toHaveBeenCalled();
+    });
+
     it('rechaza cuando los correos no coinciden', async () => {
       const { signUp, user } = renderRegistro();
       await completar(user, { confirmarCorreo: 'otra@gmail.com' });
       expect(Swal.fire).toHaveBeenCalledWith('Error de Correo', expect.any(String), 'error');
+      expect(signUp).not.toHaveBeenCalled();
+    });
+
+    it('rechaza cuando la contraseña tiene menos de 6 caracteres', async () => {
+      const { signUp, user } = renderRegistro();
+      await completar(user, { password: '123', confirmarPassword: '123' });
+      expect(Swal.fire).toHaveBeenCalledWith('Contraseña Inválida', expect.any(String), 'error');
       expect(signUp).not.toHaveBeenCalled();
     });
 
@@ -116,7 +140,7 @@ describe('Registro', () => {
         expect.objectContaining({
           correo: 'ana@gmail.com',
           password: 'secret1',
-          run: '10000013K', // sin puntos ni guion y en mayúscula
+          run: '10000013K', // sin puntos ni guion y en mayúscula 
           nombre: 'Ana',
           apellidos: 'Pérez Soto',
           region: REGION,

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1791828200422" clover="3.2.0">
+  <project timestamp="1791828200422" name="All files">
+    <metrics statements="190" coveredstatements="190" conditionals="134" coveredconditionals="122" methods="66" coveredmethods="66" elements="390" coveredelements="378" complexity="0" loc="190" ncloc="190" packages="5" files="9" classes="9"/>
+    <package name="components">
+      <metrics statements="9" coveredstatements="9" conditionals="13" coveredconditionals="13" methods="3" coveredmethods="3"/>
+      <file name="ProductCard.jsx" path="C:\Users\joako\Downloads\React-CLstore\src\components\ProductCard.jsx">
+        <metrics statements="4" coveredstatements="4" conditionals="7" coveredconditionals="7" methods="2" coveredmethods="2"/>
+        <line num="6" count="52" type="stmt"/>
+        <line num="7" count="52" type="stmt"/>
+        <line num="9" count="52" type="stmt"/>
+        <line num="33" count="1" type="stmt"/>
+      </file>
+      <file name="ProtectedRoute.jsx" path="C:\Users\joako\Downloads\React-CLstore\src\components\ProtectedRoute.jsx">
+        <metrics statements="5" coveredstatements="5" conditionals="6" coveredconditionals="6" methods="1" coveredmethods="1"/>
+        <line num="5" count="4" type="stmt"/>
+        <line num="7" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="8" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="9" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="11" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="context">
+      <metrics statements="52" coveredstatements="52" conditionals="30" coveredconditionals="24" methods="19" coveredmethods="19"/>
+      <file name="CartContext.jsx" path="C:\Users\joako\Downloads\React-CLstore\src\context\CartContext.jsx">
+        <metrics statements="52" coveredstatements="52" conditionals="30" coveredconditionals="24" methods="19" coveredmethods="19"/>
+        <line num="7" count="1" type="stmt"/>
+        <line num="10" count="65" type="stmt"/>
+        <line num="11" count="65" type="stmt"/>
+        <line num="12" count="65" type="stmt"/>
+        <line num="14" count="65" type="stmt"/>
+        <line num="15" count="12" type="cond" truecount="1" falsecount="1"/>
+        <line num="16" count="12" type="stmt"/>
+        <line num="17" count="12" type="stmt"/>
+        <line num="21" count="12" type="cond" truecount="2" falsecount="2"/>
+        <line num="22" count="12" type="stmt"/>
+        <line num="25" count="65" type="stmt"/>
+        <line num="26" count="17" type="cond" truecount="2" falsecount="0"/>
+        <line num="27" count="7" type="stmt"/>
+        <line num="29" count="10" type="stmt"/>
+        <line num="34" count="15" type="cond" truecount="2" falsecount="0"/>
+        <line num="35" count="2" type="stmt"/>
+        <line num="36" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="37" count="1" type="stmt"/>
+        <line num="42" count="1" type="stmt"/>
+        <line num="48" count="2" type="stmt"/>
+        <line num="50" count="13" type="stmt"/>
+        <line num="51" count="13" type="stmt"/>
+        <line num="52" count="13" type="cond" truecount="2" falsecount="0"/>
+        <line num="53" count="2" type="stmt"/>
+        <line num="54" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="57" count="11" type="stmt"/>
+        <line num="71" count="15" type="stmt"/>
+        <line num="82" count="6" type="stmt"/>
+        <line num="83" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="84" count="5" type="stmt"/>
+        <line num="86" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="87" count="2" type="stmt"/>
+        <line num="88" count="2" type="stmt"/>
+        <line num="91" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="92" count="1" type="stmt"/>
+        <line num="93" count="1" type="stmt"/>
+        <line num="95" count="2" type="stmt"/>
+        <line num="96" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="102" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="103" count="2" type="stmt"/>
+        <line num="104" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="105" count="2" type="stmt"/>
+        <line num="107" count="3" type="stmt"/>
+        <line num="112" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="113" count="1" type="stmt"/>
+        <line num="115" count="2" type="stmt"/>
+        <line num="118" count="65" type="stmt"/>
+        <line num="119" count="30" type="stmt"/>
+        <line num="120" count="30" type="stmt"/>
+        <line num="123" count="65" type="stmt"/>
+        <line num="125" count="65" type="stmt"/>
+        <line num="129" count="60" type="stmt"/>
+      </file>
+    </package>
+    <package name="data">
+      <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      <file name="regionesYComunas.js" path="C:\Users\joako\Downloads\React-CLstore\src\data\regionesYComunas.js">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="1" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="lib">
+      <metrics statements="24" coveredstatements="24" conditionals="20" coveredconditionals="18" methods="6" coveredmethods="6"/>
+      <file name="validaciones.js" path="C:\Users\joako\Downloads\React-CLstore\src\lib\validaciones.js">
+        <metrics statements="24" coveredstatements="24" conditionals="20" coveredconditionals="18" methods="6" coveredmethods="6"/>
+        <line num="3" count="16" type="stmt"/>
+        <line num="4" count="16" type="cond" truecount="4" falsecount="0"/>
+        <line num="6" count="13" type="stmt"/>
+        <line num="7" count="13" type="stmt"/>
+        <line num="9" count="13" type="cond" truecount="1" falsecount="1"/>
+        <line num="11" count="13" type="stmt"/>
+        <line num="12" count="13" type="stmt"/>
+        <line num="14" count="13" type="stmt"/>
+        <line num="15" count="104" type="stmt"/>
+        <line num="16" count="104" type="cond" truecount="2" falsecount="0"/>
+        <line num="19" count="13" type="stmt"/>
+        <line num="20" count="13" type="cond" truecount="1" falsecount="1"/>
+        <line num="21" count="13" type="cond" truecount="2" falsecount="0"/>
+        <line num="22" count="5" type="stmt"/>
+        <line num="24" count="13" type="stmt"/>
+        <line num="28" count="3" type="stmt"/>
+        <line num="31" count="7" type="stmt"/>
+        <line num="34" count="45" type="stmt"/>
+        <line num="38" count="102" type="stmt"/>
+        <line num="46" count="101" type="cond" truecount="2" falsecount="0"/>
+        <line num="47" count="101" type="cond" truecount="2" falsecount="0"/>
+        <line num="48" count="101" type="stmt"/>
+        <line num="49" count="101" type="cond" truecount="2" falsecount="0"/>
+        <line num="50" count="101" type="stmt"/>
+      </file>
+    </package>
+    <package name="pages">
+      <metrics statements="104" coveredstatements="104" conditionals="71" coveredconditionals="67" methods="38" coveredmethods="38"/>
+      <file name="Carrito.jsx" path="C:\Users\joako\Downloads\React-CLstore\src\pages\Carrito.jsx">
+        <metrics statements="12" coveredstatements="12" conditionals="8" coveredconditionals="7" methods="6" coveredmethods="6"/>
+        <line num="7" count="8" type="stmt"/>
+        <line num="8" count="8" type="stmt"/>
+        <line num="9" count="8" type="stmt"/>
+        <line num="11" count="8" type="stmt"/>
+        <line num="39" count="10" type="cond" truecount="1" falsecount="1"/>
+        <line num="40" count="10" type="stmt"/>
+        <line num="41" count="10" type="stmt"/>
+        <line num="42" count="10" type="stmt"/>
+        <line num="62" count="1" type="stmt"/>
+        <line num="66" count="1" type="stmt"/>
+        <line num="73" count="1" type="stmt"/>
+        <line num="112" count="1" type="stmt"/>
+      </file>
+      <file name="InicioSesion.jsx" path="C:\Users\joako\Downloads\React-CLstore\src\pages\InicioSesion.jsx">
+        <metrics statements="22" coveredstatements="22" conditionals="10" coveredconditionals="10" methods="4" coveredmethods="4"/>
+        <line num="8" count="101" type="stmt"/>
+        <line num="9" count="101" type="stmt"/>
+        <line num="10" count="101" type="stmt"/>
+        <line num="11" count="101" type="stmt"/>
+        <line num="12" count="101" type="stmt"/>
+        <line num="15" count="4" type="stmt"/>
+        <line num="17" count="4" type="cond" truecount="4" falsecount="0"/>
+        <line num="18" count="1" type="stmt"/>
+        <line num="19" count="1" type="stmt"/>
+        <line num="21" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="22" count="1" type="stmt"/>
+        <line num="23" count="1" type="stmt"/>
+        <line num="26" count="2" type="stmt"/>
+        <line num="27" count="2" type="stmt"/>
+        <line num="28" count="2" type="stmt"/>
+        <line num="30" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="31" count="1" type="stmt"/>
+        <line num="32" count="1" type="stmt"/>
+        <line num="34" count="1" type="stmt"/>
+        <line num="37" count="101" type="stmt"/>
+        <line num="57" count="67" type="stmt"/>
+        <line num="72" count="24" type="stmt"/>
+      </file>
+      <file name="Productos.jsx" path="C:\Users\joako\Downloads\React-CLstore\src\pages\Productos.jsx">
+        <metrics statements="20" coveredstatements="20" conditionals="21" coveredconditionals="18" methods="9" coveredmethods="9"/>
+        <line num="5" count="1" type="stmt"/>
+        <line num="13" count="40" type="stmt"/>
+        <line num="14" count="40" type="stmt"/>
+        <line num="15" count="40" type="stmt"/>
+        <line num="16" count="40" type="stmt"/>
+        <line num="18" count="40" type="stmt"/>
+        <line num="19" count="10" type="stmt"/>
+        <line num="23" count="10" type="cond" truecount="3" falsecount="1"/>
+        <line num="24" count="10" type="stmt"/>
+        <line num="28" count="40" type="stmt"/>
+        <line num="29" count="39" type="stmt"/>
+        <line num="30" count="39" type="stmt"/>
+        <line num="31" count="87" type="cond" truecount="2" falsecount="0"/>
+        <line num="32" count="87" type="cond" truecount="2" falsecount="0"/>
+        <line num="34" count="87" type="cond" truecount="2" falsecount="0"/>
+        <line num="38" count="40" type="stmt"/>
+        <line num="54" count="15" type="stmt"/>
+        <line num="62" count="160" type="stmt"/>
+        <line num="65" count="5" type="stmt"/>
+        <line num="78" count="46" type="stmt"/>
+      </file>
+      <file name="Registro.jsx" path="C:\Users\joako\Downloads\React-CLstore\src\pages\Registro.jsx">
+        <metrics statements="50" coveredstatements="50" conditionals="32" coveredconditionals="32" methods="19" coveredmethods="19"/>
+        <line num="8" count="1" type="stmt"/>
+        <line num="10" count="1" type="stmt"/>
+        <line num="16" count="526" type="stmt"/>
+        <line num="17" count="526" type="stmt"/>
+        <line num="18" count="526" type="stmt"/>
+        <line num="19" count="526" type="stmt"/>
+        <line num="21" count="7186" type="cond" truecount="2" falsecount="0"/>
+        <line num="24" count="510" type="stmt"/>
+        <line num="32" count="8" type="stmt"/>
+        <line num="34" count="8" type="stmt"/>
+        <line num="36" count="8" type="cond" truecount="12" falsecount="0"/>
+        <line num="37" count="1" type="stmt"/>
+        <line num="38" count="1" type="stmt"/>
+        <line num="40" count="7" type="cond" truecount="2" falsecount="0"/>
+        <line num="41" count="1" type="stmt"/>
+        <line num="42" count="1" type="stmt"/>
+        <line num="44" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="45" count="1" type="stmt"/>
+        <line num="46" count="1" type="stmt"/>
+        <line num="48" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="49" count="1" type="stmt"/>
+        <line num="50" count="1" type="stmt"/>
+        <line num="52" count="4" type="cond" truecount="4" falsecount="0"/>
+        <line num="53" count="1" type="stmt"/>
+        <line num="54" count="1" type="stmt"/>
+        <line num="56" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="57" count="1" type="stmt"/>
+        <line num="58" count="1" type="stmt"/>
+        <line num="60" count="2" type="stmt"/>
+        <line num="62" count="2" type="stmt"/>
+        <line num="73" count="2" type="stmt"/>
+        <line num="75" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="76" count="1" type="stmt"/>
+        <line num="77" count="1" type="stmt"/>
+        <line num="80" count="1" type="stmt"/>
+        <line num="86" count="1" type="stmt"/>
+        <line num="89" count="526" type="stmt"/>
+        <line num="98" count="63" type="stmt"/>
+        <line num="104" count="21" type="stmt"/>
+        <line num="109" count="70" type="stmt"/>
+        <line num="114" count="93" type="stmt"/>
+        <line num="120" count="94" type="stmt"/>
+        <line num="125" count="1" type="stmt"/>
+        <line num="130" count="45" type="stmt"/>
+        <line num="136" count="45" type="stmt"/>
+        <line num="142" count="8" type="stmt"/>
+        <line num="145" count="8416" type="stmt"/>
+        <line num="151" count="7" type="stmt"/>
+        <line num="154" count="328" type="stmt"/>
+        <line num="162" count="63" type="stmt"/>
+      </file>
+    </package>
+  </project>
+</coverage>

@@ -211,5 +211,40 @@ describe('CartContext', () => {
       expect(mocks.chain.eq).toHaveBeenCalledWith('usuario_id', 'u1');
       expect(result.current.items).toEqual([]);
     });
+    it('cambiarCantidad con usuario actualiza el registro en Supabase', async () => {
+      const { result } = renderCart();
+      await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.cambiarCantidad(1, 1); // Sube cantidad de 2 a 3
+      });
+
+      expect(mocks.chain.update).toHaveBeenCalledWith({ cantidad: 3 });
+      expect(mocks.chain.eq).toHaveBeenCalledWith('id', 100);
+    });
+
+    it('cambiarCantidad que llega a 0 ejecuta eliminarProducto en Supabase', async () => {
+      const { result } = renderCart();
+      await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.cambiarCantidad(1, -2); // 2 - 2 = 0
+      });
+
+      expect(mocks.chain.delete).toHaveBeenCalled();
+      expect(mocks.chain.eq).toHaveBeenCalledWith('id', 100);
+    });
+
+    it('eliminarProducto con usuario borra la fila específica en Supabase', async () => {
+      const { result } = renderCart();
+      await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.eliminarProducto(1);
+      });
+
+      expect(mocks.chain.delete).toHaveBeenCalled();
+      expect(mocks.chain.eq).toHaveBeenCalledWith('id', 100);
+    });
   });
 });
