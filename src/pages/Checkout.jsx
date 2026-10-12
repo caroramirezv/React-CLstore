@@ -64,12 +64,44 @@ export default function Checkout() {
 
     setProcesando(false);
 
-    if (error) {
-      // El carrito NO se vacía: el stock tampoco se tocó (la función es atómica),
-      // así que la persona puede ajustar cantidades y volver a intentar.
-      navigate('/resumen-compra', { state: { exito: false, motivo: error.message } });
-      return;
-    }
+
+
+if (error) {
+  const { data: ordenFallida, error: errorRegistro } =
+    await supabase.rpc('registrar_orden_fallida', {
+      p_usuario_id: usuario?.id || null,
+      p_nombre: nombre,
+      p_apellidos: apellidos,
+      p_correo: correo,
+      p_telefono: telefono || null,
+      p_region: region,
+      p_comuna: comuna,
+      p_direccion: direccion,
+      p_total: Number(total) || 0,
+    });
+
+  if (errorRegistro) {
+    console.error(
+      'Error guardando la orden fallida:',
+      errorRegistro
+    );
+  }
+
+  setProcesando(false);
+
+  navigate('/resumen-compra', {
+    state: {
+      exito: false,
+      motivo: error.message,
+      ordenId: ordenFallida || null,
+    },
+  });
+
+  return;
+}
+
+setProcesando(false);
+
 
     const itemsResumen = items.map((it) => {
       const { precioFinal } = calcularPrecioFinal(it.productos);

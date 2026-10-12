@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { formatoCLP } from '../lib/validaciones';
+import { formatoCLP, calcularPrecioFinal } from '../lib/validaciones';
 import { useCart } from '../context/CartContext';
 import ProductCard from '../components/ProductCard';
 
@@ -54,12 +54,14 @@ export default function DetalleProducto() {
     texto: 'Este producto cumple con los más altos estándares de calidad.',
   };
   const specs = producto.especificaciones || {};
+  const { precioOriginal, precioFinal, enOferta, descuento } = calcularPrecioFinal(producto);
 
   return (
     <div className="container my-5">
       <div className="row g-4">
         <div className="col-md-5">
-          <div className="border rounded p-3 shadow-sm bg-white">
+          <div className="border rounded p-3 shadow-sm bg-white position-relative">
+            {enOferta && <span className="badge bg-danger position-absolute top-0 start-0 m-2 fs-6">-{descuento}%</span>}
             <img
               src={producto.imagen}
               alt={producto.nombre}
@@ -79,7 +81,15 @@ export default function DetalleProducto() {
           }}
         >
           <h2 className="fw-bold">
-            {producto.nombre} <span className="text-primary ms-2">{formatoCLP(producto.precio)}</span>
+            {producto.nombre}{' '}
+            {enOferta ? (
+              <span className="ms-2">
+                <span className="text-muted text-decoration-line-through fs-5 me-2">{formatoCLP(precioOriginal)}</span>
+                <span className="text-danger">{formatoCLP(precioFinal)}</span>
+              </span>
+            ) : (
+              <span className="text-primary ms-2">{formatoCLP(precioFinal)}</span>
+            )}
           </h2>
           <p className="text-secondary fw-semibold fs-5">
             {producto.descripcion ||

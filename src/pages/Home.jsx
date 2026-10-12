@@ -52,9 +52,12 @@ export default function Home() {
             <ProductCard key={p.id} producto={p} mostrarBotonAgregar={false} />
           ))}
         </div>
-        <div className="text-center mt-4">
+        <div className="text-center mt-4 d-flex gap-3 justify-content-center flex-wrap">
           <Link to="/productos" className="btn btn-primary rounded-pill">
             Ver catálogo completo <i className="fa-solid fa-arrow-right ms-1"></i>
+          </Link>
+          <Link to="/ofertas" className="btn btn-outline-danger rounded-pill">
+            <i className="fa-solid fa-tags ms-1 me-1"></i> Ver Ofertas
           </Link>
         </div>
       </div>

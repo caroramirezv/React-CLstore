@@ -34,7 +34,9 @@ export default function AdminDashboard() {
 
       const ventasTotales = ordenes.reduce((acc, o) => acc + Number(o.total || 0), 0);
       const unidadesEnStock = productos.reduce((acc, p) => acc + Number(p.stock || 0), 0);
-      const productosStockCritico = productos.filter((p) => p.stock_critico != null && p.stock <= p.stock_critico).length;
+      const productosStockCritico = productos.filter(
+        (p) => p.stock_critico != null && p.stock <= p.stock_critico
+      ).length;
 
       const porCategoria = {};
       productos.forEach((p) => {
@@ -63,12 +65,13 @@ export default function AdminDashboard() {
 
   return (
     <section className="p-4">
-      <h4 className="fw-bold mb-4"><i className="fa-solid fa-gauge-high me-2"></i>Dashboard</h4>
-      <p className="text-muted mb-4">Resumen de las actividades de la tienda.</p>
+      <h4 className="fw-bold mb-4">
+        <i className="fa-solid fa-gauge-high me-2"></i>Dashboard
+      </h4>
 
       <div className="row g-3 mb-4">
         <div className="col-md-4">
-          <div className="p-4 rounded-4 text-white shadow-sm" style={{ backgroundColor: '#0d6efd' }}>
+          <div className="p-4 rounded-4 text-white shadow-sm h-100" style={{ backgroundColor: '#0d6efd' }}>
             <div className="d-flex align-items-center gap-2 mb-2">
               <i className="fa-solid fa-sack-dollar fs-4"></i>
               <span className="fw-semibold">Ventas Totales</span>
@@ -78,7 +81,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="col-md-4">
-          <div className="p-4 rounded-4 text-white shadow-sm" style={{ backgroundColor: '#198754' }}>
+          <div className="p-4 rounded-4 text-white shadow-sm h-100" style={{ backgroundColor: '#198754' }}>
             <div className="d-flex align-items-center gap-2 mb-2">
               <i className="fa-solid fa-box fs-4"></i>
               <span className="fw-semibold">Productos</span>
@@ -88,7 +91,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="col-md-4">
-          <div className="p-4 rounded-4 text-dark shadow-sm" style={{ backgroundColor: '#ffc107' }}>
+          <div className="p-4 rounded-4 text-dark shadow-sm h-100" style={{ backgroundColor: '#ffc107' }}>
             <div className="d-flex align-items-center gap-2 mb-2">
               <i className="fa-solid fa-users fs-4"></i>
               <span className="fw-semibold">Usuarios</span>
@@ -106,7 +109,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="card border-0 shadow-sm rounded-4 p-4">
+      <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
         <h6 className="fw-bold mb-3">Unidades en stock por categoría</h6>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={stats.ventasPorCategoria}>
@@ -118,6 +121,7 @@ export default function AdminDashboard() {
           </BarChart>
         </ResponsiveContainer>
       </div>
+
     </section>
   );
 }

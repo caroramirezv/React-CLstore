@@ -66,17 +66,12 @@ export default function AdminUsuarios() {
     }
 
     if (esEdicion) {
-      // Actualiza los datos de negocio en "perfiles". El correo/contraseña de Auth
-      // no se pueden cambiar desde aquí sin privilegios de administrador de Supabase
-      // (ver nota de la Edge Function en el README).
       const { error } = await supabase
         .from('perfiles')
         .update({ tipo, nombre, apellidos, correo, fecha_nacimiento: fechaNacimiento || null, region, comuna, direccion })
         .eq('id', form.id);
       if (error) { Swal.fire('Error', error.message, 'error'); return; }
     } else {
-      // Crear un usuario nuevo (con su propia cuenta de Auth) desde el panel admin
-      // requiere la Edge Function "create-user" incluida en /supabase/functions.
       const { data: sesionActual } = await supabase.auth.getSession();
       const { error } = await supabase.functions.invoke('create-user', {
         body: { run: runFormateado, tipo, nombre, apellidos, correo, fechaNacimiento, password, region, comuna, direccion },
@@ -84,16 +79,28 @@ export default function AdminUsuarios() {
       });
 
       if (error) {
-        // error.message solo dice "Edge Function returned a non-2xx status code".
-        // El motivo real viene en el cuerpo de la respuesta (error.context).
-        let detalle = error.message;
-        try {
-          const cuerpo = await error.context.json();
-          detalle = cuerpo.error || detalle;
-        } catch {
-          // Si no se puede leer el cuerpo, nos quedamos con el mensaje genérico.
+        console.error('Error al crear usuario:', error);
+
+        if (error.context) {
+          try {
+            console.error(
+              'Respuesta de Supabase:',
+              await error.context.clone().json()
+            );
+          } catch {
+            console.error(
+              'Respuesta de texto:',
+              await error.context.clone().text()
+            );
+          }
         }
-        Swal.fire('No se pudo crear el usuario', detalle, 'error');
+
+        Swal.fire(
+          'No se pudo crear el usuario',
+          error.message || 'Error desconocido',
+          'error'
+        );
+
         return;
       }
     }
@@ -114,8 +121,6 @@ export default function AdminUsuarios() {
     });
     if (!resultado.isConfirmed) return;
 
-    // Borra el perfil. Para borrar también la cuenta de Auth se necesita la misma
-    // Edge Function con privilegios de servicio (ver README).
     const { error } = await supabase.from('perfiles').delete().eq('id', u.id);
     if (error) { Swal.fire('Error', error.message, 'error'); return; }
     await cargarUsuarios();

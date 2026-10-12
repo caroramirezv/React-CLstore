@@ -8,7 +8,9 @@ const CATEGORIA_LABELS = {
   componentes: 'Componentes',
   consolas: 'Consolas & Laptops',
   perifericos: 'Periféricos & Monitores',
+
 };
+
 
 const formVacio = {
   id: '', nombre: '', descripcion: '', precio: '', stock: '', stockCritico: '', categoria: '', imagen: '', descuento: '',
@@ -18,6 +20,8 @@ export default function AdminProductos() {
   const [productos, setProductos] = useState([]);
   const [form, setForm] = useState(formVacio);
   const [esEdicion, setEsEdicion] = useState(false);
+  const [imagenArchivo, setImagenArchivo] = useState(null);
+  const [imagenPreview, setImagenPreview] = useState('');
 
   async function cargarProductos() {
     const { data } = await supabase.from('productos').select('*').order('nombre');
@@ -30,10 +34,13 @@ export default function AdminProductos() {
 
   function abrirCreacion() {
     setForm(formVacio);
+    setImagenArchivo(null);
+    setImagenPreview('');
     setEsEdicion(false);
   }
 
   function abrirEdicion(p) {
+
     setForm({
       id: p.id,
       nombre: p.nombre || '',
@@ -45,11 +52,36 @@ export default function AdminProductos() {
       imagen: p.imagen || '',
       descuento: p.descuento_porcentaje ?? '',
     });
+
+    setImagenArchivo(null);
+    setImagenPreview(p.imagen || '');
     setEsEdicion(true);
   }
 
   function cerrarModal() {
     Modal.getInstance(document.getElementById('modalProducto'))?.hide();
+    setImagenArchivo(null);
+    setImagenPreview('');
+  }
+
+  function seleccionarImagen(e) {
+    const archivo = e.target.files?.[0] || null;
+    if (!archivo) return;
+
+    if (!archivo.type.startsWith('image/')) {
+      Swal.fire('Archivo no válido', 'Selecciona un archivo de imagen.', 'error');
+      e.target.value = '';
+      return;
+    }
+
+    if (archivo.size > 5 * 1024 * 1024) {
+      Swal.fire('Imagen demasiado grande', 'La imagen debe pesar 5 MB o menos.', 'error');
+      e.target.value = '';
+      return;
+    }
+
+    setImagenArchivo(archivo);
+    setImagenPreview(URL.createObjectURL(archivo));
   }
 
   async function guardar(e) {
@@ -73,12 +105,45 @@ export default function AdminProductos() {
       return;
     }
 
+
+
+    let imagenFinal = form.imagen || '/img/Logo.png';
+
+    if (imagenArchivo) {
+      const extension = imagenArchivo.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const extensionSegura = extension.replace(/[^a-z0-9]/g, '') || 'jpg';
+      const nombreArchivo = `${form.id}/${Date.now()}.${extensionSegura}`;
+      const { error: errorSubida } = await supabase.storage
+        .from('productos')
+        .upload(nombreArchivo, imagenArchivo, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: imagenArchivo.type,
+        });
+
+      if (errorSubida) {
+        Swal.fire(
+          'No se pudo subir la imagen',
+          `${errorSubida.message}. Comprueba que exista el bucket de Storage llamado "productos" y que tenga los permisos necesarios.`,
+          'error'
+        );
+        return;
+      }
+
+      const { data: urlPublica } = supabase.storage
+        .from('productos')
+        .getPublicUrl(nombreArchivo);
+      imagenFinal = urlPublica.publicUrl;
+    }
+
     const payload = {
       nombre: form.nombre, descripcion: form.descripcion, precio, stock,
       stock_critico: stockCritico, categoria: form.categoria,
-      imagen: form.imagen || '/img/Logo.png', busqueda: form.nombre.toLowerCase(),
+      imagen: imagenFinal, busqueda: form.nombre.toLowerCase(),
       descuento_porcentaje: descuento,
     };
+
+
 
     if (esEdicion) {
       const { error } = await supabase.from('productos').update(payload).eq('id', form.id);
@@ -86,7 +151,6 @@ export default function AdminProductos() {
     } else {
       const { data: existente } = await supabase.from('productos').select('id').eq('id', form.id).maybeSingle();
       if (existente) { Swal.fire('Código repetido', 'Ya existe un producto con ese código.', 'error'); return; }
-
       const { error } = await supabase.from('productos').insert({ id: form.id, ...payload });
       if (error) { Swal.fire('Error', error.message, 'error'); return; }
     }
@@ -96,7 +160,10 @@ export default function AdminProductos() {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: esEdicion ? 'Producto actualizado' : 'Producto creado', showConfirmButton: false, timer: 1500 });
   }
 
+
+
   async function eliminar(id) {
+
     const resultado = await Swal.fire({
       title: '¿Eliminar producto?', text: 'Esta acción no se puede deshacer.', icon: 'warning',
       showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar', confirmButtonColor: '#800000',
@@ -175,6 +242,7 @@ export default function AdminProductos() {
               <h5 className="modal-title fw-bold">{esEdicion ? 'Editar Producto' : 'Nuevo Producto'}</h5>
               <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
             </div>
+
             <form onSubmit={guardar}>
               <div className="modal-body row g-3">
                 <div className="col-md-6">
@@ -183,11 +251,13 @@ export default function AdminProductos() {
                     placeholder="Ej: PROD001 (Min 3 caracteres)"
                     value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value.trim() })} />
                 </div>
+
                 <div className="col-md-6">
                   <label className="form-label fw-semibold">Nombre *</label>
                   <input type="text" className="form-control" maxLength={100} required
                     value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
                 </div>
+
                 <div className="col-12">
                   <label className="form-label fw-semibold">Descripción (Opcional)</label>
                   <textarea className="form-control" rows={2} maxLength={500}
@@ -224,9 +294,25 @@ export default function AdminProductos() {
                   </select>
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold">Ruta Imagen (Opcional)</label>
-                  <input type="text" className="form-control" placeholder="/img/ejemplo.jpg"
-                    value={form.imagen} onChange={(e) => setForm({ ...form, imagen: e.target.value })} />
+                  <label className="form-label fw-semibold">Foto del producto (Opcional)</label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    accept="image/*"
+                    onChange={seleccionarImagen}
+                  />
+                  <small className="text-muted d-block mt-1">Formatos de imagen habituales. Tamaño máximo: 5 MB.</small>
+                  {imagenPreview && (
+                    <div className="mt-2">
+                      <img
+                        src={imagenPreview}
+                        alt="Vista previa del producto"
+                        style={{ maxWidth: '180px', maxHeight: '140px', objectFit: 'contain' }}
+                        className="border rounded p-1"
+                      />
+                      <div className="small text-muted mt-1">{imagenArchivo ? imagenArchivo.name : 'Imagen actual'}</div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">

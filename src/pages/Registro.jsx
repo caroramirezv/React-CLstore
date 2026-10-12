@@ -49,8 +49,8 @@ export default function Registro() {
       Swal.fire('Error de Correo', 'Los correos electrónicos ingresados no coinciden.', 'error');
       return;
     }
-    if (password.length < 4 || password.length > 10) {
-      Swal.fire('Contraseña Inválida', 'La contraseña debe tener entre 4 y 10 caracteres.', 'error');
+    if (password.length < 6 || password.length > 10) {
+      Swal.fire('Contraseña Inválida', 'La contraseña debe tener entre 6 y 10 caracteres.', 'error');
       return;
     }
     if (password !== confirmarPassword) {
@@ -59,7 +59,7 @@ export default function Registro() {
     }
 
     setEnviando(true);
-    const { error, necesitaConfirmacion } = await signUp({
+    const { error } = await signUp({
       correo,
       password,
       run: formatearRun(run),
@@ -79,11 +79,11 @@ export default function Registro() {
 
     Swal.fire({
       title: '¡Registro Exitoso!',
-      text: necesitaConfirmacion
-        ? 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.'
-        : 'Tu cuenta se ha creado correctamente. Redirigiendo...',
+      text: 'Tu cuenta se ha creado correctamente. Redirigiendo...',
       icon: 'success',
-    }).then(() => navigate('/iniciar-sesion'));
+      timer: 1500,
+      showConfirmButton: false,
+    }).then(() => navigate('/'));
   }
 
   return (
@@ -94,52 +94,52 @@ export default function Registro() {
 
           <form onSubmit={registrar} className="p-4 rounded-3 shadow text-white" style={{ backgroundColor: '#212529', borderTop: '4px solid #800000' }}>
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">RUN</label>
-              <input type="text" className="form-control border-0" placeholder="Ej: 19011022K (Sin puntos ni guion)" minLength={7} maxLength={9} style={inputStyle} value={form.run} onChange={(e) => actualizar('run', e.target.value)} required />
+              <label htmlFor="registro-run" className="form-label fw-bold">RUN</label>
+              <input id="registro-run" type="text" className="form-control border-0" placeholder="Ej: 19011022K (Sin puntos ni guion)" minLength={7} maxLength={9} style={inputStyle} value={form.run} onChange={(e) => actualizar('run', e.target.value)} required />
               <small className="text-white-50">Sin puntos ni guion (7 a 9 caracteres).</small>
             </div>
 
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">Nombre</label>
-              <input type="text" className="form-control border-0" maxLength={50} style={inputStyle} value={form.nombre} onChange={(e) => actualizar('nombre', e.target.value)} required />
+              <label htmlFor="registro-nombre" className="form-label fw-bold">Nombre</label>
+              <input id="registro-nombre" type="text" className="form-control border-0" maxLength={50} style={inputStyle} value={form.nombre} onChange={(e) => actualizar('nombre', e.target.value)} required />
             </div>
 
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">Apellidos</label>
-              <input type="text" className="form-control border-0" maxLength={100} style={inputStyle} value={form.apellidos} onChange={(e) => actualizar('apellidos', e.target.value)} required />
+              <label htmlFor="registro-apellidos" className="form-label fw-bold">Apellidos</label>
+              <input id="registro-apellidos" type="text" className="form-control border-0" maxLength={100} style={inputStyle} value={form.apellidos} onChange={(e) => actualizar('apellidos', e.target.value)} required />
             </div>
 
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">Correo</label>
-              <input type="email" className="form-control border-0" placeholder="ejemplo@duoc.cl" maxLength={100} style={inputStyle} value={form.correo} onChange={(e) => actualizar('correo', e.target.value)} required />
+              <label htmlFor="registro-correo" className="form-label fw-bold">Correo</label>
+              <input id="registro-correo" type="email" className="form-control border-0" placeholder="ejemplo@duoc.cl" maxLength={100} style={inputStyle} value={form.correo} onChange={(e) => actualizar('correo', e.target.value)} required />
               <small className="text-white-50">Solo @duoc.cl, @profesor.duoc.cl o @gmail.com</small>
             </div>
 
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">Confirmar Correo</label>
-              <input type="email" className="form-control border-0" style={inputStyle} value={form.confirmarCorreo} onChange={(e) => actualizar('confirmarCorreo', e.target.value)} required />
+              <label htmlFor="registro-confirmar-correo" className="form-label fw-bold">Confirmar Correo</label>
+              <input id="registro-confirmar-correo" type="email" className="form-control border-0" style={inputStyle} value={form.confirmarCorreo} onChange={(e) => actualizar('confirmarCorreo', e.target.value)} required />
             </div>
 
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">Fecha de Nacimiento (Opcional)</label>
-              <input type="date" className="form-control border-0" style={inputStyle} value={form.fechaNacimiento} onChange={(e) => actualizar('fechaNacimiento', e.target.value)} />
+              <label htmlFor="registro-fecha" className="form-label fw-bold">Fecha de Nacimiento (Opcional)</label>
+              <input id="registro-fecha" type="date" className="form-control border-0" style={inputStyle} value={form.fechaNacimiento} onChange={(e) => actualizar('fechaNacimiento', e.target.value)} />
             </div>
 
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">Contraseña</label>
-              <input type="password" className="form-control border-0" minLength={4} maxLength={10} style={inputStyle} value={form.password} onChange={(e) => actualizar('password', e.target.value)} required />
-              <small className="text-white-50">Entre 4 y 10 caracteres.</small>
+              <label htmlFor="registro-password" className="form-label fw-bold">Contraseña</label>
+              <input id="registro-password" type="password" className="form-control border-0" minLength={6} maxLength={10} style={inputStyle} value={form.password} onChange={(e) => actualizar('password', e.target.value)} required />
+              <small className="text-white-50">Entre 6 y 10 caracteres.</small>
             </div>
 
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">Confirmar Contraseña</label>
-              <input type="password" className="form-control border-0" style={inputStyle} value={form.confirmarPassword} onChange={(e) => actualizar('confirmarPassword', e.target.value)} required />
+              <label htmlFor="registro-confirmar-password" className="form-label fw-bold">Confirmar Contraseña</label>
+              <input id="registro-confirmar-password" type="password" className="form-control border-0" style={inputStyle} value={form.confirmarPassword} onChange={(e) => actualizar('confirmarPassword', e.target.value)} required />
             </div>
 
             <div className="row g-3 mb-3">
               <div className="col-md-6 text-start">
-                <label className="form-label fw-bold">Región</label>
-                <select className="form-select border-0" style={inputStyle} value={form.region} onChange={(e) => actualizar('region', e.target.value)} required>
+                <label htmlFor="registro-region" className="form-label fw-bold">Región</label>
+                <select id="registro-region" className="form-select border-0" style={inputStyle} value={form.region} onChange={(e) => actualizar('region', e.target.value)} required>
                   <option value="" disabled>-- Seleccione región --</option>
                   {REGIONES_Y_COMUNAS.map((r) => (
                     <option key={r.region} value={r.region}>{r.region}</option>
@@ -147,8 +147,8 @@ export default function Registro() {
                 </select>
               </div>
               <div className="col-md-6 text-start">
-                <label className="form-label fw-bold">Comuna</label>
-                <select className="form-select border-0" style={inputStyle} value={form.comuna} onChange={(e) => actualizar('comuna', e.target.value)} required disabled={!form.region}>
+                <label htmlFor="registro-comuna" className="form-label fw-bold">Comuna</label>
+                <select id="registro-comuna" className="form-select border-0" style={inputStyle} value={form.comuna} onChange={(e) => actualizar('comuna', e.target.value)} required disabled={!form.region}>
                   <option value="" disabled>-- Seleccione comuna --</option>
                   {comunasDisponibles.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -158,8 +158,8 @@ export default function Registro() {
             </div>
 
             <div className="mb-3 text-start">
-              <label className="form-label fw-bold">Dirección</label>
-              <input type="text" className="form-control border-0" maxLength={300} style={inputStyle} value={form.direccion} onChange={(e) => actualizar('direccion', e.target.value)} required />
+              <label htmlFor="registro-direccion" className="form-label fw-bold">Dirección</label>
+              <input id="registro-direccion" type="text" className="form-control border-0" maxLength={300} style={inputStyle} value={form.direccion} onChange={(e) => actualizar('direccion', e.target.value)} required />
             </div>
 
             <div className="mb-3 text-center">

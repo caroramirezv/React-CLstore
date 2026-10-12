@@ -30,7 +30,7 @@ export default function BlogDetalle() {
         <i className="fa-solid fa-arrow-left me-1"></i> Volver a Blogs
       </Link>
 
-      <h1 className="fw-bold mb-4">{blog.titulo}</h1>
+      <h1 className="fw-bold mb-4" style={{ color: '#0f172a' }}>{blog.titulo}</h1>
 
       <img
         src={blog.imagen}
@@ -41,14 +41,14 @@ export default function BlogDetalle() {
 
       <div className="fs-5" style={{ lineHeight: 1.7 }}>
         {(blog.contenido || []).map((parrafo, i) => (
-          <p key={i} style={{ lineHeight: 1.8, marginBottom: '1.5rem', color: '#e0e0e0' }}>
+          <p key={i} style={{ lineHeight: 1.8, marginBottom: '1.5rem', color: '#334155' }}>
             {parrafo}
           </p>
         ))}
       </div>
 
       {blog.fuente_url && (
-        <a href={blog.fuente_url} target="_blank" rel="noopener noreferrer" className="d-inline-block mt-4 text-decoration-none">
+        <a href={blog.fuente_url} target="_blank" rel="noopener noreferrer" className="d-inline-block mt-4 text-decoration-none" style={{ color: '#2563eb' }}>
           Escrito por: {blog.fuente_nombre || 'Equipo CLstore'}
         </a>
       )}

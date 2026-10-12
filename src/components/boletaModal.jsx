@@ -1,9 +1,10 @@
 import React from 'react';
-import { formatoCLP } from '../test/validaciones';
+import { formatoCLP } from '../lib/validaciones';
 
 export default function BoletaModal({ show, onClose, numOrden, codigoOrden, cliente, items, total }) {
   if (!show) return null;
 
+  // Cálculo de impuestos en Chile (IVA 19%)
   const neto = Math.round(total / 1.19);
   const iva = total - neto;
   const fechaActual = new Date().toLocaleDateString('es-CL', {

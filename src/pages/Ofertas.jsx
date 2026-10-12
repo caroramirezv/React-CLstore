@@ -24,7 +24,6 @@ export default function Ofertas() {
         <h1 className="fw-bold">
           <i className="fa-solid fa-tags text-danger me-2"></i>Ofertas
         </h1>
-        <p className="text-muted fs-5">Productos con descuento por tiempo limitado.</p>
       </div>
 
       <div className="row row-cols-1 row-cols-md-3 g-4">

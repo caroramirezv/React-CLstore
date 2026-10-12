@@ -125,7 +125,7 @@ export default function Contacto() {
       </div>
 
       <div className="mt-5 pt-4">
-        <h2 className="text-center mb-4 h3 fw-bold" style={{ color: '#eeeff0' }}>Nuestras Tiendas</h2>
+        <h2 className="text-center mb-4 h3 fw-bold" style={{ color: '#030303' }}>Nuestras Tiendas</h2>
         <div className="row g-4">
           {[
             ['Providencia', 'Av. Andrés Bello 2425, Oficina 803, Santiago', '+56 9 8412 3765'],
