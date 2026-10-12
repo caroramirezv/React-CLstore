@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import InicioSesion from './InicioSesion';
+import InicioSesion from '../pages/InicioSesion';
 
 vi.mock('sweetalert2', () => ({ default: { fire: vi.fn(() => Promise.resolve({})) } }));
 vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));

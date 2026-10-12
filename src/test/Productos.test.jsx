@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import Productos from './Productos';
+import Productos from '../pages/Productos';
 
 vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
 

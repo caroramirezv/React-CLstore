@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import Carrito from './Carrito';
+import Carrito from '../pages/Carrito';
 
 vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));
