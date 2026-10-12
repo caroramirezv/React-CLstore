@@ -20,26 +20,91 @@ export default function Home() {
   return (
     <>
       <div className="container-fluid p-0">
-        <div id="carouselHome" className="carousel slide" data-bs-ride="carousel">
-          <div className="carousel-inner">
-            <div className="carousel-item active">
-              <img src="/img/Carrusel1.png" className="d-block w-100 carousel-banner-img" alt="Banner 1" />
-            </div>
-            <div className="carousel-item">
-              <img src="/img/Carrusel2.png" className="d-block w-100 carousel-banner-img" alt="Banner 2" />
-            </div>
-            <div className="carousel-item">
-              <img src="/img/Carrusel3.png" className="d-block w-100 carousel-banner-img" alt="Banner 3" />
-            </div>
+      <div
+        id="carouselHome"
+        className="carousel slide"
+        data-bs-ride="carousel"
+        data-bs-interval="4000"
+      >
+        <div className="carousel-inner">
+          <div className="carousel-item active">
+            <Link to="/ofertas" className="d-block">
+              <img
+                src="/img/Carrusel1.png"
+                className="d-block w-100 carousel-banner-img"
+                alt="Ir a todos los productos"
+              />
+            </Link>
           </div>
-          <button className="carousel-control-prev" type="button" data-bs-target="#carouselHome" data-bs-slide="prev">
-            <span className="carousel-control-prev-icon" />
-          </button>
-          <button className="carousel-control-next" type="button" data-bs-target="#carouselHome" data-bs-slide="next">
-            <span className="carousel-control-next-icon" />
-          </button>
+
+          <div className="carousel-item">
+            <Link
+              to="/productos?categoria=Componentes"
+              className="d-block"
+            >
+              <img
+                src="/img/Carrusel2.png"
+                className="d-block w-100 carousel-banner-img"
+                alt="Ir a productos de la categoría Componentes"
+              />
+            </Link>
+          </div>
+
+          <div className="carousel-item">
+            <Link to="/productos" className="d-block">
+              <img
+                src="/img/Carrusel3.png"
+                className="d-block w-100 carousel-banner-img"
+                alt="Ir a las ofertas"
+              />
+            </Link>
+          </div>
+        </div>
+
+        <button
+          className="carousel-control-prev"
+          type="button"
+          data-bs-target="#carouselHome"
+          data-bs-slide="prev"
+          aria-label="Banner anterior"
+        >
+          <span className="carousel-control-prev-icon" />
+        </button>
+
+        <button
+          className="carousel-control-next"
+          type="button"
+          data-bs-target="#carouselHome"
+          data-bs-slide="next"
+          aria-label="Banner siguiente"
+        >
+          <span className="carousel-control-next-icon" />
+        </button>
+
+        <div className="carousel-indicators">
+          <button
+            type="button"
+            data-bs-target="#carouselHome"
+            data-bs-slide-to="0"
+            className="active"
+            aria-current="true"
+            aria-label="Mostrar productos"
+          />
+          <button
+            type="button"
+            data-bs-target="#carouselHome"
+            data-bs-slide-to="1"
+            aria-label="Mostrar componentes"
+          />
+          <button
+            type="button"
+            data-bs-target="#carouselHome"
+            data-bs-slide-to="2"
+            aria-label="Mostrar ofertas"
+          />
         </div>
       </div>
+    </div>
 
       {perfil && (
         <h2 className="text-center fw-bold mt-4 mb-0">¡Bienvenido/a de nuevo, {perfil.nombre}!</h2>
