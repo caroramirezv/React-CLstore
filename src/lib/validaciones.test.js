@@ -4,6 +4,7 @@ import {
   validarRunChileno,
   formatearRun,
   validarDominioCorreo,
+  calcularPrecioFinal,
 } from './validaciones';
 
 describe('formatoCLP', () => {
@@ -59,4 +60,40 @@ describe('validarDominioCorreo', () => {
     'rechaza %s',
     (correo) => expect(validarDominioCorreo(correo)).toBe(false)
   );
+});
+describe('calcularPrecioFinal', () => {
+  it('sin descuento (null) devuelve el precio original y enOferta=false', () => {
+    expect(calcularPrecioFinal({ precio: 10000, descuento_porcentaje: null })).toEqual({
+      precioOriginal: 10000,
+      precioFinal: 10000,
+      enOferta: false,
+      descuento: 0,
+    });
+  });
+
+  it.each([
+    [0, 10000, false],
+    [15, 8500, true],
+    [50, 5000, true],
+    [100, 0, true],
+  ])('con %i%% de descuento el precio final de 10000 es %i (enOferta=%s)', (descuento, esperado, enOferta) => {
+    const r = calcularPrecioFinal({ precio: 10000, descuento_porcentaje: descuento });
+    expect(r.precioFinal).toBe(esperado);
+    expect(r.enOferta).toBe(enOferta);
+  });
+
+  it('redondea el precio final (9999 con 15% → 8499)', () => {
+    expect(calcularPrecioFinal({ precio: 9999, descuento_porcentaje: 15 }).precioFinal).toBe(8499);
+  });
+
+  it('acepta valores numéricos en texto (como vienen de un input)', () => {
+    const r = calcularPrecioFinal({ precio: '10000', descuento_porcentaje: '20' });
+    expect(r.precioFinal).toBe(8000);
+    expect(r.descuento).toBe(20);
+  });
+
+  it('con producto undefined o null devuelve todo en cero sin lanzar error', () => {
+    expect(calcularPrecioFinal(undefined)).toEqual({ precioOriginal: 0, precioFinal: 0, enOferta: false, descuento: 0 });
+    expect(calcularPrecioFinal(null).precioFinal).toBe(0);
+  });
 });
