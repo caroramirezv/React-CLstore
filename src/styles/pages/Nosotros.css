@@ -1,0 +1,5 @@
+/* Nosotros */
+body:has(#carouselNosotros) .content-body { max-width: 1180px; }
+#carouselNosotros { border: 1px solid var(--cl-border); }
+body:has(#carouselNosotros) .content-body p { font-size: 1.08rem; line-height: 1.9; color: #475569; }
+body:has(#carouselNosotros) h1 { color: #172033; letter-spacing: -.045em; }

@@ -1,0 +1,21 @@
+/* Blog */
+body:has(a[href^="/blogs/"]) .container.my-5 { max-width: 1260px; }
+body:has(a[href^="/blogs/"]) .card { overflow: hidden; }
+
+/* Corrección de visibilidad del texto en las tarjetas de blogs */
+.card .card-body p,
+.card .card-text,
+.card p,
+.card span {
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+  opacity: 1 !important;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.card h1, .card h2, .card h3, .card h4, .card h5, .card .card-title {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  font-weight: 700;
+}

@@ -1,0 +1,101 @@
+/* Ficha de producto */
+body:has(.card-product) .container.my-5 { max-width: 1320px; }
+body:has(.card-product) .card { border: 1px solid var(--cl-border); }
+body:has(.card-product) .card h2, body:has(.card-product) .card h3 { letter-spacing: -.025em; }
+
+/* ==========================================================
+   AJUSTE DE ESPECIFICACIONES (RECUADRO DE DETALLES)
+   ========================================================== */
+
+/* 1. Contenedor de especificaciones (Caja gris clara con bordes) */
+.container table,
+.container .table,
+.container .list-group,
+main table,
+main .table,
+main .list-group,
+.container div[class*="border"]:not(.card),
+main div[class*="border"]:not(.card) {
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+/* 2. Filas y divisiones internas */
+.container table tr,
+.container .table tr,
+.container .list-group-item,
+main table tr,
+main .table tr,
+main .list-group-item,
+.container div[class*="border"] > div,
+main div[class*="border"] > div {
+  background-color: transparent !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.container table tr:last-child,
+.container .table tr:last-child,
+.container .list-group-item:last-child,
+main table tr:last-child,
+main .table tr:last-child,
+main .list-group-item:last-child,
+.container div[class*="border"] > div:last-child,
+main div[class*="border"] > div:last-child {
+  border-bottom: none !important;
+}
+
+/* 3. Espaciado de celdas */
+.container table td,
+.container .table td,
+.container .list-group-item,
+main table td,
+main .table td,
+main .list-group-item {
+  padding: 0.85rem 1.25rem !important;
+  font-size: 0.9rem;
+  vertical-align: middle;
+}
+
+/* 4. TEXTO DE LA COLUMNA IZQUIERDA (Garantía, Categoría, Fabricante, Conectividad) */
+.container table tr td:first-child,
+.container table tr td:first-child *,
+.container .table tr td:first-child,
+.container .table tr td:first-child *,
+.container .list-group-item > *:first-child,
+.container .list-group-item > *:first-child *,
+main table tr td:first-child,
+main table tr td:first-child *,
+main .table tr td:first-child,
+main .table tr td:first-child *,
+main .list-group-item > *:first-child,
+main .list-group-item > *:first-child * {
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+}
+
+/* 5. TEXTO DE LA COLUMNA DERECHA (12 meses, Teclado gamer, Logitech, Inalámbrico) */
+.container table tr td:last-child,
+.container table tr td:last-child *,
+.container .table tr td:last-child,
+.container .table tr td:last-child *,
+.container .list-group-item > *:last-child,
+.container .list-group-item > *:last-child *,
+main table tr td:last-child,
+main table tr td:last-child *,
+main .table tr td:last-child,
+main .table tr td:last-child *,
+main .list-group-item > *:last-child,
+main .list-group-item > *:last-child * {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  font-weight: 700 !important;
+  text-align: right;
+  opacity: 1 !important;
+}

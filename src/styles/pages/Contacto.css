@@ -1,0 +1,78 @@
+/* Contacto */
+body:has(textarea) .container.my-5 { max-width: 1120px; }
+
+
+body:has(textarea) .container.my-5 h1,
+body:has(textarea) .container.my-5 > div > h2 {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+
+body:has(textarea) .col-lg-5 h2,
+body:has(textarea) .col-lg-5 .h4 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+body:has(textarea) .col-lg-5 p {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+
+body:has(textarea) .container.my-5 form {
+  background: #ffffff !important;
+  color: #172033 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-top: 4px solid var(--cl-blue, #2563eb) !important;
+  border-radius: 12px !important;
+}
+
+/* Títulos de las etiquetas (Nombre, Email, Comentario) */
+body:has(textarea) form .form-label {
+  color: #334155 !important;
+}
+
+/* Ajuste de inputs: reemplaza el tono amarillento por gris suave profesional */
+body:has(textarea) form .form-control {
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  border-radius: 8px !important;
+  padding: 0.65rem 0.9rem !important;
+  transition: all 0.2s ease;
+}
+
+/* Efecto al seleccionar el campo */
+body:has(textarea) form .form-control:focus {
+  background-color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+
+body:has(textarea) .card {
+  background-color: #1e293b !important;
+  border-radius: 14px !important;
+}
+
+body:has(textarea) .card h3 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+body:has(textarea) .card p.text-light {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+body:has(textarea) .card p.text-warning {
+  color: #f59e0b !important;
+  -webkit-text-fill-color: #f59e0b !important;
+  font-weight: 700 !important;
+}

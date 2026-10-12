@@ -1,0 +1,4 @@
+/* Administración: órdenes */
+.content-body section .table-responsive { border-radius: 14px; }
+.content-body section .table { --bs-table-bg: #fff; --bs-table-color: #334155; --bs-table-hover-bg: #f5f8fc; margin-bottom: 0; }
+.content-body section .table thead th { color: #fff; background: #172033; font-size: .76rem; letter-spacing: .05em; text-transform: uppercase; }

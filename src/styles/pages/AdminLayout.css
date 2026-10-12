@@ -1,0 +1,25 @@
+/* Administración: navegación y espacio de trabajo */
+.admin-navbar { padding-inline: clamp(.75rem, 2vw, 1.5rem); }
+.admin-navbar .navbar-brand { letter-spacing: -.03em; }
+.content-body > section { animation: clstore-enter .25s ease both; }
+.content-body section > h4 { margin-bottom: 1.5rem !important; }
+@keyframes clstore-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 991px) {
+  .admin-navbar .navbar-collapse { padding: .75rem 0 1rem; }
+  .admin-navbar .navbar-nav { align-items: stretch; }
+  .admin-navbar .nav-link { width: 100%; text-align: left; }
+}
+
+/* Solución al bloqueo de pantalla/telón negro del modal */
+body.modal-open .content-body > section {
+  animation: none !important;
+  transform: none !important;
+}
+
+.modal-backdrop {
+  z-index: 1050 !important;
+}
+
+.modal {
+  z-index: 1060 !important;
+}

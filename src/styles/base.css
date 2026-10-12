@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --cl-ink: #172033;
+  --cl-muted: #64748b;
+  --cl-blue: #2563eb;
+  --cl-blue-dark: #1d4ed8;
+  --cl-red: #c6283d;
+  --cl-bg: #f4f7fb;
+  --cl-border: #e2e8f0;
+  --cl-card: #ffffff;
+  --bs-primary: #2563eb;
+  --bs-primary-rgb: 37, 99, 235;
+}
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--cl-bg);
+  color: var(--cl-ink);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, h5, h6, .navbar-brand { font-family: 'Manrope', 'Inter', sans-serif; color: var(--cl-ink); letter-spacing: -.025em; }
+p { font-size: 1rem; line-height: 1.7; }
+a { transition: color .18s ease; }
+img { max-width: 100%; }
+.container { --bs-gutter-x: 1.7rem; }
+.container.my-5 { padding-top: .5rem; padding-bottom: .75rem; }
+.btn { font-weight: 650; transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease; }
+.btn-primary { background-color: var(--cl-blue); border-color: var(--cl-blue); box-shadow: 0 5px 12px rgba(37,99,235,.12); }
+.btn-primary:hover, .btn-primary:focus { background-color: var(--cl-blue-dark); border-color: var(--cl-blue-dark); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37,99,235,.2); }
+.btn-outline-danger { color: var(--cl-red); border-color: #f0a6b1; }
+.btn-outline-danger:hover { background: var(--cl-red); border-color: var(--cl-red); }
+.form-control, .form-select { color: var(--cl-ink); border-color: #dbe3ee; border-radius: 10px; }
+.form-control::placeholder { color: #94a3b8; }
+.form-control:focus, .form-select:focus { border-color: #60a5fa; box-shadow: 0 0 0 .22rem rgba(37,99,235,.12); }
+.card { background: var(--cl-card); color: var(--cl-ink); border-color: var(--cl-border); box-shadow: 0 6px 22px rgba(15,23,42,.045); }
+.card:not(.card-product) { border-radius: 16px; }
+.card-body { min-width: 0; }
+.badge { font-weight: 700; letter-spacing: .01em; }
+.table { color: #334155; }
+.table > :not(caption) > * > * { border-bottom-color: #e8edf4; }
+.text-muted { color: var(--cl-muted) !important; }
+.content-body { max-width: 1500px; margin: 0 auto; padding: 2rem 1.5rem; }
+.admin-navbar { min-height: 72px; border-color: var(--cl-border) !important; box-shadow: 0 4px 20px rgba(15,23,42,.04); }
+.brand-logo { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg,#2563eb,#0f3eaa); color: #fff; display:flex; align-items:center; justify-content:center; }
+.nav-pills-custom .nav-link { border-radius: 999px; padding: .55rem .95rem; color: #475569; font-weight: 650; transition: background .2s ease,color .2s ease; }
+.nav-pills-custom .nav-link:hover { background: #eff6ff; color: var(--cl-blue); }
+.nav-pills-custom .nav-link.active { background: var(--cl-blue); color: #fff; box-shadow: 0 5px 12px rgba(37,99,235,.18); }
+.btn-exit { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+.btn-exit:hover { background: #e2e8f0; color: #172033; }
+.profile-avatar { width: 34px; height: 34px; border-radius: 50%; background: #eaf1ff; color: var(--cl-blue); display:flex; align-items:center; justify-content:center; }
+.modal-content { border: 0; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 60px rgba(15,23,42,.2); }
+.modal-header, .modal-footer { border-color: var(--cl-border); }
+footer { background: #111827; color: #cbd5e1; padding: 2.5rem 0; text-align: center; margin-top: 3rem; }
+::selection { color: #fff; background: #2563eb; }
+@media (max-width: 768px) {
+  .container { --bs-gutter-x: 1.15rem; }
+  .content-body { padding: 1.2rem .85rem; }
+  h1.display-3 { font-size: clamp(2.2rem, 9vw, 3.3rem); }
+  .admin-navbar .profile-pill { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

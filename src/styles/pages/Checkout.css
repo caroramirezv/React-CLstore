@@ -1,0 +1,3 @@
+/* Checkout */
+.container.my-5 .form-control, .container.my-5 .form-select { min-height: 44px; border-color: #dbe3ee; border-radius: 10px; }
+.container.my-5 .form-control:focus, .container.my-5 .form-select:focus { border-color: #60a5fa; box-shadow: 0 0 0 .22rem rgba(37,99,235,.12); }

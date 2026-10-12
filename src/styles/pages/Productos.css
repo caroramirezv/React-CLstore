@@ -1,0 +1,6 @@
+/* Catálogo */
+body:has(.btn-filter) .container.my-5 { max-width: 1320px; }
+body:has(.btn-filter) .input-group { border-radius: 14px; box-shadow: 0 5px 20px rgba(15,23,42,.06); }
+body:has(.btn-filter) .input-group-text, body:has(.btn-filter) .input-group .form-control { border-color: #dfe5ee; padding-top: .8rem; padding-bottom: .8rem; }
+.btn-filter { white-space: nowrap; font-weight: 650; padding: .62rem 1.1rem; transition: all .2s ease; }
+.btn-filter:hover { transform: translateY(-1px); }

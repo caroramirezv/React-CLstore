@@ -1,0 +1,6 @@
+/* Barra de navegación pública */
+body > #root .navbar.navbar-dark { background: #111827 !important; border-bottom: 1px solid rgba(255,255,255,.08); padding-block: .7rem; }
+body > #root .navbar.navbar-dark .navbar-brand { letter-spacing: -.025em; }
+body > #root .navbar.navbar-dark .nav-link { color: #dbe4f0; border-radius: 999px; padding: .55rem .8rem; transition: color .2s, background .2s; }
+body > #root .navbar.navbar-dark .nav-link:hover, body > #root .navbar.navbar-dark .nav-link.active { color: #fff; background: rgba(59,130,246,.2); }
+body > #root .navbar.navbar-dark .btn-primary { background: var(--cl-blue); border-color: var(--cl-blue); }

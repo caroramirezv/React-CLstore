@@ -1,0 +1,72 @@
+/* Carrito */
+.cart-card .table td .input-group,
+.cart-card .table td .d-flex,
+.table td .input-group,
+.table td .d-flex {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important; /* Espacio libre de 12px a cada lado */
+  width: auto !important;
+}
+
+/* 2. Anular la unión pegada por defecto de Bootstrap (.input-group) */
+.table td .input-group > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {
+  margin-left: 0 !important;
+  border-radius: 8px !important; /* Bordes redondeados individuales */
+}
+
+/* 3. Casilla del número */
+.table td input[type="number"],
+.table td .form-control {
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  height: 38px !important;
+  text-align: center !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 0 !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  margin: 0 4px !important; /* Margen adicional de protección */
+  box-shadow: none !important;
+  -moz-appearance: textfield;
+}
+
+/* Ocultar flechas nativas del navegador */
+.table td input[type="number"]::-webkit-outer-spin-button,
+.table td input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* 4. Botones de restar (-) y sumar (+) separados */
+.table td button,
+.table td .btn {
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #cbd5e1 !important;
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  font-size: 1.1rem !important;
+  cursor: pointer;
+  flex-shrink: 0 !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.table td button:hover,
+.table td .btn:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}

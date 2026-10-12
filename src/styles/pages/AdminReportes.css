@@ -1,0 +1,3 @@
+/* Administración: reportes */
+.content-body .card { border: 1px solid var(--cl-border); }
+.content-body .card h5, .content-body .card h6 { color: #172033; }

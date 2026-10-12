@@ -1,0 +1,8 @@
+/* Tarjetas de producto */
+.card-product { border: 1px solid var(--cl-border) !important; border-radius: 18px !important; overflow: hidden; background: #fff !important; color: #172033 !important; transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+.card-product:hover { transform: translateY(-5px); box-shadow: 0 18px 35px rgba(15,23,42,.11) !important; border-color: #bfdbfe !important; }
+.card-product .card-img-top { height: 215px; object-fit: contain; padding: 1.25rem; background: linear-gradient(180deg,#f8fafc,#fff); }
+.card-product .card-title { font-size: 1rem; line-height: 1.45; color: #172033; }
+.card-product .card-body { padding: 1.25rem; }
+.card-product .btn-outline-secondary { color: #334155; border-color: #cbd5e1; }
+.card-product .btn-outline-secondary:hover { background: #172033; color: #fff; }

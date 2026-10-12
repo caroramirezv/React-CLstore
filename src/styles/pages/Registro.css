@@ -1,0 +1,3 @@
+/* Registro */
+body:has(input[placeholder*="RUN"]) .container.my-5 form { background: #fff !important; color: #172033 !important; border: 1px solid var(--cl-border); border-top: 4px solid var(--cl-blue) !important; border-radius: 18px !important; }
+body:has(input[placeholder*="RUN"]) .container.my-5 .form-control, body:has(input[placeholder*="RUN"]) .container.my-5 .form-select { min-height: 44px; }
