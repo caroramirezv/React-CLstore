@@ -93,4 +93,12 @@ describe('Carrito', () => {
       expect(screen.queryByText(/comprando como invitado/i)).not.toBeInTheDocument();
     });
   });
+
+  describe('item sin datos del producto', () => {
+    it('muestra la fila con precio y subtotal en $0 en vez de fallar', () => {
+      renderCarrito({ items: [{ producto_id: 9, cantidad: 1 }], total: 0 });
+      expect(screen.getByRole('button', { name: 'Eliminar undefined' })).toBeInTheDocument();
+      expect(screen.getAllByText('$0', { selector: 'td' })).toHaveLength(2); // precio y subtotal
+    });
+  });
 });

@@ -2,195 +2,371 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import Swal from 'sweetalert2';
 import AdminBlogs from '../pages/Admin/AdminBlogs';
-import { cadena } from '../../test/cadenaSupabase';
 
-vi.mock('sweetalert2', () => ({ default: { fire: vi.fn(() => Promise.resolve({ isConfirmed: true })) } }));
+vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }));
 vi.mock('bootstrap', () => ({ Modal: { getInstance: () => null } }));
-const mocks = vi.hoisted(() => ({ from: vi.fn() }));
-vi.mock('../../lib/supabaseClient', () => ({
-  supabase: { from: (...args) => mocks.from(...args) },
+
+// Una función por operación: listar, buscar repetido, insertar, actualizar y borrar.
+const mocks = vi.hoisted(() => ({
+  lista: { data: [], error: null },
+  existente: { data: null, error: null },
+  insert: vi.fn(),
+  update: vi.fn(),
+  eliminar: vi.fn(),
+  upload: vi.fn(),
+}));
+vi.mock('../lib/supabaseClient', () => ({
+  supabase: {
+    storage: {
+      from: () => ({
+        upload: (ruta, archivo, opciones) => mocks.upload(ruta, archivo, opciones),
+        getPublicUrl: (ruta) => ({ data: { publicUrl: `https://cdn.test/${ruta}` } }),
+      }),
+    },
+    from: () => ({
+      select: (columnas) =>
+        columnas === '*'
+          ? { order: () => Promise.resolve(mocks.lista) }
+          : { eq: () => ({ maybeSingle: () => Promise.resolve(mocks.existente) }) },
+      insert: (fila) => mocks.insert(fila),
+      update: (payload) => ({ eq: (col, valor) => mocks.update(payload, col, valor) }),
+      delete: () => ({ eq: (col, valor) => mocks.eliminar(col, valor) }),
+    }),
+  },
 }));
 
 const blogs = [
-  {
-    id: 'guia-pc',
-    titulo: 'Cómo armar un PC',
-    resumen: 'Parte por la placa.',
-    imagen: 'pc.jpg',
-    contenido: ['Primer párrafo', 'Segundo'],
-    fuente_nombre: 'Equipo CLstore',
-    fuente_url: 'https://clstore.example/guia',
-    created_at: '2026-10-01T12:00:00.000Z',
-  },
-  { id: 'nota', titulo: 'Sin foto', resumen: '', imagen: '', contenido: [], created_at: null },
+  { id: 'guia-pc', titulo: 'Cómo armar un PC', resumen: 'Guía corta', imagen: 'pc.jpg',
+    contenido: ['Uno', 'Dos'], fuente_nombre: 'Ana', fuente_url: 'https://ana.cl', created_at: '2026-10-01T12:00:00' },
+  { id: 'ofertas', titulo: 'Ofertas de octubre', resumen: 'Lo mejor', imagen: null,
+    contenido: ['Texto'], fuente_nombre: null, fuente_url: null, created_at: null },
 ];
 
-const estado = {
-  blogs,
-  errorLista: null,
-  uno: { data: null, error: null },
-  alInsertar: vi.fn(),
-  alActualizar: vi.fn(),
-  alEliminar: vi.fn(),
-  alEq: vi.fn(),
-};
+const campo = (etiqueta) =>
+  screen.getByText(etiqueta, { selector: 'label' }).parentElement.querySelector('input, textarea');
+const escribir = (etiqueta, valor) => fireEvent.change(campo(etiqueta), { target: { value: valor } });
+const enviar = () => fireEvent.submit(campo('Título *').closest('form'));
+const fila = (titulo) => screen.getByText(titulo).closest('tr');
+const toast = (titulo) => expect.objectContaining({ title: titulo });
 
-function renderBlogs() {
-  mocks.from.mockImplementation(() => cadena(() => ({
-    data: estado.blogs,
-    error: estado.errorLista,
-    uno: estado.uno,
-    alInsertar: estado.alInsertar,
-    alActualizar: estado.alActualizar,
-    alEliminar: estado.alEliminar,
-    alEq: estado.alEq,
-  })));
+function renderBlogs(respuesta = { data: blogs, error: null }) {
+  mocks.lista = respuesta;
   render(<AdminBlogs />);
   return userEvent.setup();
 }
 
-function campo(etiqueta) {
-  return screen.getByText(etiqueta, { selector: 'label' }).parentElement.querySelector('input, textarea');
+function llenarBlogNuevo() {
+  escribir('Identificador *', 'nuevo-blog');
+  escribir('Título *', 'Nuevo blog');
+  escribir('Resumen *', 'Un resumen');
+  escribir('Contenido del artículo *', 'Primer párrafo\n\nSegundo párrafo');
 }
 
 describe('AdminBlogs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    estado.blogs = blogs;
-    estado.errorLista = null;
-    estado.uno = { data: null, error: null };
+    Swal.fire.mockResolvedValue({ isConfirmed: true });
+    mocks.existente = { data: null, error: null };
+    mocks.insert.mockResolvedValue({ error: null });
+    mocks.update.mockResolvedValue({ error: null });
+    mocks.eliminar.mockResolvedValue({ error: null });
+    mocks.upload.mockResolvedValue({ error: null });
+    URL.createObjectURL = vi.fn(() => 'blob:vista-previa');
   });
 
-  it('muestra "Cargando blogs..." mientras espera', async () => {
-    let resolver;
-    mocks.from.mockImplementation(() => ({
-      select: () => ({ order: () => new Promise((resolve) => { resolver = resolve; }) }),
-    }));
-    render(<AdminBlogs />);
-    expect(screen.getByText('Cargando blogs...')).toBeInTheDocument();
-    resolver({ data: [], error: null });
-    expect(await screen.findByText('Todavía no hay blogs publicados.')).toBeInTheDocument();
+  describe('listado', () => {
+    it('muestra "Cargando blogs..." y luego una fila por blog', async () => {
+      renderBlogs();
+      expect(screen.getByText('Cargando blogs...')).toBeInTheDocument();
+      expect(await screen.findByText('Cómo armar un PC')).toBeInTheDocument();
+      expect(screen.getByText('Ofertas de octubre')).toBeInTheDocument();
+      expect(screen.getByText('ID: guia-pc')).toBeInTheDocument();
+      expect(screen.queryByText('Cargando blogs...')).not.toBeInTheDocument();
+    });
+
+    it('sin blogs muestra el mensaje de vacío', async () => {
+      renderBlogs({ data: [], error: null });
+      expect(await screen.findByText('Todavía no hay blogs publicados.')).toBeInTheDocument();
+    });
+
+    it('si la carga falla avisa con un Swal', async () => {
+      renderBlogs({ data: null, error: { message: 'falló' } });
+      await waitFor(() =>
+        expect(Swal.fire).toHaveBeenCalledWith('No se pudieron cargar los blogs', 'falló', 'error')
+      );
+    });
   });
 
-  it('lista título, resumen, id e imagen', async () => {
-    renderBlogs();
-    expect(await screen.findByText('Cómo armar un PC')).toBeInTheDocument();
-    expect(screen.getByText('Parte por la placa.')).toBeInTheDocument();
-    expect(screen.getByText('ID: guia-pc')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Cómo armar un PC' })).toHaveAttribute('src', 'pc.jpg');
-    expect(screen.getByText('Sin resumen')).toBeInTheDocument();
-    expect(screen.getByText('—')).toBeInTheDocument();
+  describe('crear', () => {
+    it('guarda el blog separando el contenido en párrafos', async () => {
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
+      llenarBlogNuevo();
+      enviar();
+      await waitFor(() =>
+        expect(mocks.insert).toHaveBeenCalledWith({
+          id: 'nuevo-blog', titulo: 'Nuevo blog', resumen: 'Un resumen', imagen: null,
+          contenido: ['Primer párrafo', 'Segundo párrafo'], fuente_nombre: null, fuente_url: null,
+        })
+      );
+      expect(Swal.fire).toHaveBeenCalledWith(toast('Blog creado'));
+    });
+
+    it('exige identificador, título, resumen y contenido', async () => {
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
+      llenarBlogNuevo();
+      escribir('Resumen *', '   ');
+      enviar();
+      expect(Swal.fire).toHaveBeenCalledWith('Faltan datos', expect.any(String), 'warning');
+      expect(mocks.insert).not.toHaveBeenCalled();
+    });
+
+    it('rechaza una URL de fuente que no empieza con http(s)', async () => {
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
+      llenarBlogNuevo();
+      escribir('URL de la fuente', 'ftp://ejemplo.cl');
+      enviar();
+      expect(Swal.fire).toHaveBeenCalledWith('URL no válida', expect.any(String), 'error');
+      expect(mocks.insert).not.toHaveBeenCalled();
+    });
+
+    it('rechaza un identificador que ya existe', async () => {
+      mocks.existente = { data: { id: 'nuevo-blog' }, error: null };
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
+      llenarBlogNuevo();
+      enviar();
+      await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('Identificador repetido', expect.any(String), 'error'));
+      expect(mocks.insert).not.toHaveBeenCalled();
+    });
+
+    it('si Supabase falla al insertar muestra el error', async () => {
+      mocks.insert.mockResolvedValue({ error: { message: 'falló' } });
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
+      llenarBlogNuevo();
+      enviar();
+      await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('No se pudo guardar el blog', 'falló', 'error'));
+    });
   });
 
-  it('si la carga falla avisa y deja la tabla vacía', async () => {
-    estado.errorLista = { message: 'sin permiso' };
-    estado.blogs = [];
-    renderBlogs();
-    expect(await screen.findByText('Todavía no hay blogs publicados.')).toBeInTheDocument();
-    expect(Swal.fire).toHaveBeenCalledWith('No se pudieron cargar los blogs', 'sin permiso', 'error');
+  describe('imagen', () => {
+    const abrirNuevo = async () => {
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
+      return user;
+    };
+    const elegir = (archivo) =>
+      fireEvent.change(campo('Imagen (opcional)'), { target: { files: archivo ? [archivo] : [] } });
+
+    it('rechaza un archivo que no es imagen', async () => {
+      await abrirNuevo();
+      elegir(new File(['hola'], 'nota.txt', { type: 'text/plain' }));
+      expect(Swal.fire).toHaveBeenCalledWith('Archivo no válido', expect.any(String), 'error');
+      expect(screen.queryByAltText('Vista previa')).not.toBeInTheDocument();
+    });
+
+    it('rechaza una imagen de más de 5 MB', async () => {
+      await abrirNuevo();
+      elegir(new File([new ArrayBuffer(5 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' }));
+      expect(Swal.fire).toHaveBeenCalledWith('Imagen demasiado grande', expect.any(String), 'error');
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
+
+    it('ignora el cambio si no se elige ningún archivo', async () => {
+      await abrirNuevo();
+      elegir(null);
+      expect(Swal.fire).not.toHaveBeenCalled();
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
+
+    it('muestra la vista previa de la imagen elegida', async () => {
+      await abrirNuevo();
+      elegir(new File(['img'], 'portada.png', { type: 'image/png' }));
+      expect(screen.getByAltText('Vista previa')).toHaveAttribute('src', 'blob:vista-previa');
+    });
+
+    it('sube la imagen y guarda su URL pública', async () => {
+      await abrirNuevo();
+      llenarBlogNuevo();
+      const foto = new File(['img'], 'Portada.PNG', { type: 'image/png' });
+      elegir(foto);
+      enviar();
+      await waitFor(() => expect(mocks.insert).toHaveBeenCalled());
+      const [ruta, archivo, opciones] = mocks.upload.mock.calls[0];
+      expect(ruta).toMatch(/^nuevo-blog\/\d+\.png$/);
+      expect(archivo).toBe(foto);
+      expect(opciones).toEqual({ cacheControl: '3600', upsert: false, contentType: 'image/png' });
+      expect(mocks.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'nuevo-blog', imagen: `https://cdn.test/${ruta}` })
+      );
+    });
+
+    it('usa la extensión jpg si el nombre del archivo no tiene una válida', async () => {
+      await abrirNuevo();
+      llenarBlogNuevo();
+      elegir(new File(['img'], 'portada.!!!', { type: 'image/jpeg' }));
+      enviar();
+      await waitFor(() => expect(mocks.upload).toHaveBeenCalled());
+      expect(mocks.upload.mock.calls[0][0]).toMatch(/^nuevo-blog\/\d+\.jpg$/);
+    });
+
+    it('si falla la subida avisa con el motivo y no guarda el blog', async () => {
+      mocks.upload.mockResolvedValue({ error: { message: 'bucket no existe' } });
+      await abrirNuevo();
+      llenarBlogNuevo();
+      elegir(new File(['img'], 'portada.png', { type: 'image/png' }));
+      enviar();
+      await waitFor(() =>
+        expect(Swal.fire).toHaveBeenCalledWith(
+          'No se pudo guardar el blog',
+          expect.stringContaining('bucket no existe'),
+          'error'
+        )
+      );
+      expect(mocks.insert).not.toHaveBeenCalled();
+    });
+
+    it('la URL de imagen escrita actualiza la vista previa y se guarda', async () => {
+      await abrirNuevo();
+      llenarBlogNuevo();
+      escribir('URL de imagen (opcional)', 'https://img.cl/a.jpg');
+      expect(screen.getByAltText('Vista previa')).toHaveAttribute('src', 'https://img.cl/a.jpg');
+      enviar();
+      await waitFor(() =>
+        expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ imagen: 'https://img.cl/a.jpg' }))
+      );
+    });
+
+    it('con un archivo elegido, escribir la URL no cambia la vista previa', async () => {
+      await abrirNuevo();
+      elegir(new File(['img'], 'portada.png', { type: 'image/png' }));
+      escribir('URL de imagen (opcional)', 'https://img.cl/b.jpg');
+      expect(screen.getByAltText('Vista previa')).toHaveAttribute('src', 'blob:vista-previa');
+    });
+
+    it('guarda el autor y la URL de la fuente', async () => {
+      await abrirNuevo();
+      llenarBlogNuevo();
+      escribir('Autor / fuente', 'Equipo CLstore');
+      escribir('URL de la fuente', 'https://clstore.cl');
+      enviar();
+      await waitFor(() =>
+        expect(mocks.insert).toHaveBeenCalledWith(
+          expect.objectContaining({ fuente_nombre: 'Equipo CLstore', fuente_url: 'https://clstore.cl' })
+        )
+      );
+    });
   });
 
-  it('rechaza el envío si faltan datos y no inserta', async () => {
-    const user = renderBlogs();
-    await screen.findByRole('button', { name: /Nuevo blog/ });
-    fireEvent.submit(screen.getByRole('button', { name: 'Crear blog', hidden: true }).form);
-    expect(Swal.fire).toHaveBeenCalledWith('Faltan datos', expect.any(String), 'warning');
-    expect(estado.alInsertar).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
-    expect(screen.getByRole('heading', { name: 'Crear blog', hidden: true })).toBeInTheDocument();
+  describe('editar', () => {
+    it('abre el formulario con los datos y el identificador bloqueado', async () => {
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(within(fila('Cómo armar un PC')).getByRole('button', { name: 'Editar' }));
+      expect(screen.getByText('Editar blog')).toBeInTheDocument();
+      expect(campo('Identificador *')).toHaveValue('guia-pc');
+      expect(campo('Identificador *')).toBeDisabled();
+      expect(campo('Contenido del artículo *')).toHaveValue('Uno\n\nDos');
+    });
+
+    it('actualiza el blog por su identificador', async () => {
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(within(fila('Cómo armar un PC')).getByRole('button', { name: 'Editar' }));
+      escribir('Título *', 'Armar un PC en 2026');
+      enviar();
+      await waitFor(() =>
+        expect(mocks.update).toHaveBeenCalledWith(
+          expect.objectContaining({ titulo: 'Armar un PC en 2026', contenido: ['Uno', 'Dos'] }),
+          'id',
+          'guia-pc'
+        )
+      );
+      expect(Swal.fire).toHaveBeenCalledWith(toast('Blog actualizado'));
+      expect(mocks.insert).not.toHaveBeenCalled();
+    });
   });
 
-  it('rechaza una URL de fuente que no es http(s)', () => {
-    renderBlogs();
-    fireEvent.change(campo('Identificador *'), { target: { value: 'guia' } });
-    fireEvent.change(campo('Título *'), { target: { value: 'Título' } });
-    fireEvent.change(campo('Resumen *'), { target: { value: 'Resumen' } });
-    fireEvent.change(campo('Contenido del artículo *'), { target: { value: 'Texto' } });
-    fireEvent.change(campo('URL de la fuente'), { target: { value: 'ftp://archivo' } });
-    fireEvent.submit(campo('Título *').form);
-    expect(Swal.fire).toHaveBeenCalledWith('URL no válida', expect.any(String), 'error');
-    expect(estado.alInsertar).not.toHaveBeenCalled();
+  describe('eliminar', () => {
+    it('al confirmar borra el blog', async () => {
+      const user = renderBlogs();
+      await screen.findByText('Ofertas de octubre');
+      await user.click(within(fila('Ofertas de octubre')).getByRole('button', { name: 'Eliminar' }));
+      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('id', 'ofertas'));
+      expect(Swal.fire).toHaveBeenCalledWith(toast('Blog eliminado'));
+    });
+
+    it('si se cancela no borra nada', async () => {
+      Swal.fire.mockResolvedValue({ isConfirmed: false });
+      const user = renderBlogs();
+      await screen.findByText('Ofertas de octubre');
+      await user.click(within(fila('Ofertas de octubre')).getByRole('button', { name: 'Eliminar' }));
+      await waitFor(() => expect(Swal.fire).toHaveBeenCalled());
+      expect(mocks.eliminar).not.toHaveBeenCalled();
+    });
+
+    it('si Supabase falla al borrar muestra el error', async () => {
+      mocks.eliminar.mockResolvedValue({ error: { message: 'sin permisos' } });
+      const user = renderBlogs();
+      await screen.findByText('Ofertas de octubre');
+      await user.click(within(fila('Ofertas de octubre')).getByRole('button', { name: 'Eliminar' }));
+      await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('No se pudo eliminar', 'sin permisos', 'error'));
+    });
   });
 
-  it('rechaza un identificador que ya existe', async () => {
-    estado.uno = { data: { id: 'guia' }, error: null };
-    renderBlogs();
-    fireEvent.change(campo('Identificador *'), { target: { value: 'guia' } });
-    fireEvent.change(campo('Título *'), { target: { value: 'Título' } });
-    fireEvent.change(campo('Resumen *'), { target: { value: 'Resumen' } });
-    fireEvent.change(campo('Contenido del artículo *'), { target: { value: 'Texto' } });
-    fireEvent.submit(campo('Título *').form);
-    await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('Identificador repetido', expect.any(String), 'error'));
-    expect(estado.alInsertar).not.toHaveBeenCalled();
-  });
+  describe('casos límite', () => {
+    it('si la lista llega sin datos ni error muestra el mensaje de vacío', async () => {
+      renderBlogs({ data: null, error: null });
+      expect(await screen.findByText('Todavía no hay blogs publicados.')).toBeInTheDocument();
+    });
 
-  it('crea el blog separando los párrafos por líneas en blanco', async () => {
-    renderBlogs();
-    fireEvent.change(campo('Identificador *'), { target: { value: 'guia-nueva' } });
-    fireEvent.change(campo('Título *'), { target: { value: 'Guía nueva' } });
-    fireEvent.change(campo('Resumen *'), { target: { value: 'Un resumen' } });
-    fireEvent.change(campo('Contenido del artículo *'), { target: { value: 'Hola\n\nMundo' } });
-    fireEvent.submit(campo('Título *').form);
-    await waitFor(() => expect(estado.alInsertar).toHaveBeenCalledWith({
-      id: 'guia-nueva',
-      titulo: 'Guía nueva',
-      resumen: 'Un resumen',
-      imagen: null,
-      contenido: ['Hola', 'Mundo'],
-      fuente_nombre: null,
-      fuente_url: null,
-    }));
-    expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ title: 'Blog creado', icon: 'success' }));
-  });
+    it('un blog sin resumen ni datos opcionales se lista y se abre vacío al editar', async () => {
+      const user = renderBlogs({
+        data: [{ id: 'vacio', titulo: 'Sin datos', resumen: null, imagen: null, contenido: null,
+          fuente_nombre: null, fuente_url: null, created_at: null }],
+        error: null,
+      });
+      await screen.findByText('Sin datos');
+      expect(within(fila('Sin datos')).getByText('Sin resumen')).toBeInTheDocument();
+      await user.click(within(fila('Sin datos')).getByRole('button', { name: 'Editar' }));
+      expect(campo('Resumen *')).toHaveValue('');
+      expect(campo('Contenido del artículo *')).toHaveValue('');
+      expect(campo('Autor / fuente')).toHaveValue('');
+      expect(campo('URL de la fuente')).toHaveValue('');
+    });
 
-  it('rechaza un archivo que no es imagen y uno que pesa más de 5 MB', () => {
-    renderBlogs();
-    const input = campo('Imagen (opcional)');
-    fireEvent.change(input, { target: { files: [new File(['x'], 'nota.txt', { type: 'text/plain' })] } });
-    expect(Swal.fire).toHaveBeenCalledWith('Archivo no válido', expect.any(String), 'error');
+    it('si falla la consulta de identificador repetido muestra el error', async () => {
+      mocks.existente = { data: null, error: { message: 'consulta falló' } };
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
+      llenarBlogNuevo();
+      enviar();
+      await waitFor(() =>
+        expect(Swal.fire).toHaveBeenCalledWith('No se pudo guardar el blog', 'consulta falló', 'error')
+      );
+      expect(mocks.insert).not.toHaveBeenCalled();
+    });
 
-    const grande = new File(['x'], 'foto.png', { type: 'image/png' });
-    Object.defineProperty(grande, 'size', { value: 6 * 1024 * 1024 });
-    fireEvent.change(input, { target: { files: [grande] } });
-    expect(Swal.fire).toHaveBeenCalledWith('Imagen demasiado grande', expect.any(String), 'error');
-  });
-
-  it('editar carga el artículo y guarda los cambios', async () => {
-    const user = renderBlogs();
-    await screen.findByText('Cómo armar un PC');
-    const fila = screen.getByText('Cómo armar un PC').closest('tr');
-    await user.click(within(fila).getByRole('button', { name: 'Editar' }));
-    expect(screen.getByRole('heading', { name: 'Editar blog', hidden: true })).toBeInTheDocument();
-    expect(campo('Identificador *')).toBeDisabled();
-    expect(campo('Identificador *')).toHaveValue('guia-pc');
-    expect(campo('Contenido del artículo *')).toHaveValue('Primer párrafo\n\nSegundo');
-    fireEvent.change(campo('Título *'), { target: { value: 'Título editado' } });
-    fireEvent.submit(screen.getByRole('button', { name: 'Guardar cambios', hidden: true }).form);
-    await waitFor(() => expect(estado.alActualizar).toHaveBeenCalledWith(expect.objectContaining({
-      titulo: 'Título editado',
-      contenido: ['Primer párrafo', 'Segundo'],
-    })));
-    expect(estado.alEq).toHaveBeenCalledWith('id', 'guia-pc');
-    expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ title: 'Blog actualizado' }));
-  });
-
-  it('eliminar pide confirmación y, si se cancela, no borra', async () => {
-    Swal.fire.mockResolvedValueOnce({ isConfirmed: false });
-    const user = renderBlogs();
-    await screen.findByText('Sin foto');
-    const fila = screen.getByText('Sin foto').closest('tr');
-    await user.click(within(fila).getByRole('button', { name: 'Eliminar' }));
-    expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ title: '¿Eliminar este blog?' }));
-    expect(estado.alEliminar).not.toHaveBeenCalled();
-  });
-
-  it('eliminar confirmado borra el blog', async () => {
-    const user = renderBlogs();
-    await screen.findByText('Sin foto');
-    const fila = screen.getByText('Sin foto').closest('tr');
-    await user.click(within(fila).getByRole('button', { name: 'Eliminar' }));
-    await waitFor(() => expect(estado.alEliminar).toHaveBeenCalled());
-    expect(estado.alEq).toHaveBeenCalledWith('id', 'nota');
-    expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ title: 'Blog eliminado' }));
+    it('si el error de guardado no trae mensaje usa uno genérico', async () => {
+      mocks.insert.mockResolvedValue({ error: {} });
+      const user = renderBlogs();
+      await screen.findByText('Cómo armar un PC');
+      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
+      llenarBlogNuevo();
+      enviar();
+      await waitFor(() =>
+        expect(Swal.fire).toHaveBeenCalledWith('No se pudo guardar el blog', 'Ocurrió un error inesperado.', 'error')
+      );
+    });
   });
 });

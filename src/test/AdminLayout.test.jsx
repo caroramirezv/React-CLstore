@@ -3,14 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import AdminLayout from '../pages/Admin/AdminLayout';
 
-vi.mock('../../context/AuthContext', () => ({ useAuth: vi.fn() }));
-vi.mock('./AdminDashboard', () => ({ default: () => <div>Vista dashboard</div> }));
-vi.mock('./AdminOrdenes', () => ({ default: () => <div>Vista ordenes</div> }));
-vi.mock('./AdminProductos', () => ({ default: () => <div>Vista productos</div> }));
-vi.mock('./AdminCategorias', () => ({ default: () => <div>Vista categorias</div> }));
-vi.mock('./AdminBlogs', () => ({ default: () => <div>Vista blogs</div> }));
-vi.mock('./AdminReportes', () => ({ default: () => <div>Vista reportes</div> }));
-vi.mock('./AdminUsuarios', () => ({ default: () => <div>Vista usuarios</div> }));
+vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));
+vi.mock('../pages/Admin/AdminDashboard', () => ({ default: () => <div>Vista dashboard</div> }));
+vi.mock('../pages/Admin/AdminOrdenes', () => ({ default: () => <div>Vista ordenes</div> }));
+vi.mock('../pages/Admin/AdminProductos', () => ({ default: () => <div>Vista productos</div> }));
+vi.mock('../pages/Admin/AdminCategorias', () => ({ default: () => <div>Vista categorias</div> }));
+vi.mock('../pages/Admin/AdminBlogs', () => ({ default: () => <div>Vista blogs</div> }));
+vi.mock('../pages/Admin/AdminReportes', () => ({ default: () => <div>Vista reportes</div> }));
+vi.mock('../pages/Admin/AdminUsuarios', () => ({ default: () => <div>Vista usuarios</div> }));
 
 import { useAuth } from '../context/AuthContext';
 
@@ -66,5 +66,18 @@ describe('AdminLayout', () => {
     const { user, signOut } = renderLayout();
     await user.click(screen.getByRole('button', { name: 'Salir' }));
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['Órdenes', 'Vista ordenes'],
+    ['Categorías', 'Vista categorias'],
+    ['Blogs', 'Vista blogs'],
+    ['Reportes', 'Vista reportes'],
+  ])('la sección %s muestra su vista', async (enlace, vista) => {
+    const { user } = renderLayout();
+    await user.click(screen.getByRole('link', { name: enlace }));
+    expect(screen.getByText(vista)).toBeInTheDocument();
+    expect(screen.queryByText('Vista dashboard')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: enlace })).toHaveClass('active');
   });
 });

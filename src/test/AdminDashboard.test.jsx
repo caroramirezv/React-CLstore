@@ -1,11 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import AdminDashboard from '../pages/Admin/AdminDashboard';
-import { cadena } from '../../test/cadenaSupabase';
 
-const mocks = vi.hoisted(() => ({ from: vi.fn() }));
-vi.mock('../../lib/supabaseClient', () => ({
-  supabase: { from: (...args) => mocks.from(...args) },
-}));
+// Los gráficos de recharts no se dibujan en jsdom: se reemplazan por una lista simple.
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }) => <div>{children}</div>,
   BarChart: ({ data }) => (
@@ -22,80 +18,97 @@ vi.mock('recharts', () => ({
   CartesianGrid: () => null,
 }));
 
-const estado = {
-  ordenes: [{ total: 10000, estado: 'exitosa' }, { total: 5000, estado: 'exitosa' }],
-  productos: [
+// La vista consulta ordenes (con eq), productos y perfiles (solo cuenta).
+const mocks = vi.hoisted(() => ({ ordenes: [], productos: [], usuarios: 0 }));
+vi.mock('../lib/supabaseClient', () => ({
+  supabase: {
+    from: (tabla) => ({
+      select: () => {
+        if (tabla === 'ordenes') return { eq: () => Promise.resolve({ data: mocks.ordenes }) };
+        if (tabla === 'productos') return Promise.resolve({ data: mocks.productos });
+        return Promise.resolve({ count: mocks.usuarios });
+      },
+    }),
+  },
+}));
+
+function renderDashboard({ ordenes, productos, usuarios = 4 } = {}) {
+  mocks.ordenes = ordenes ?? [{ total: 10000, estado: 'exitosa' }, { total: 5000, estado: 'exitosa' }];
+  mocks.productos = productos ?? [
     { stock: 2, stock_critico: 5, categoria: 'perifericos' },
     { stock: 8, stock_critico: 2, categoria: 'componentes' },
     { stock: 3, stock_critico: null, categoria: 'audio' },
-  ],
-  usuarios: 4,
-};
-
-function renderDashboard() {
-  mocks.from.mockImplementation((tabla) => {
-    if (tabla === 'ordenes') return cadena(() => ({ data: estado.ordenes }));
-    if (tabla === 'productos') return cadena(() => ({ data: estado.productos }));
-    return cadena(() => ({ count: estado.usuarios }));
-  });
+  ];
+  mocks.usuarios = usuarios;
   render(<AdminDashboard />);
 }
 
 describe('AdminDashboard', () => {
-  beforeEach(() => {
-    estado.ordenes = [{ total: 10000, estado: 'exitosa' }, { total: 5000, estado: 'exitosa' }];
-    estado.productos = [
-      { stock: 2, stock_critico: 5, categoria: 'perifericos' },
-      { stock: 8, stock_critico: 2, categoria: 'componentes' },
-      { stock: 3, stock_critico: null, categoria: 'audio' },
-    ];
-    estado.usuarios = 4;
-  });
-
-  it('muestra "Cargando dashboard..." mientras espera', async () => {
-    const pendientes = [];
-    mocks.from.mockImplementation(() => {
-      let resolve;
-      const promise = new Promise((resolver) => { resolve = resolver; });
-      pendientes.push(resolve);
-      const builder = {
-        select() { return builder; },
-        eq() { return builder; },
-        then: (res, rej) => promise.then(res, rej),
-      };
-      return builder;
-    });
-    render(<AdminDashboard />);
+  it('muestra "Cargando dashboard..." y luego las tarjetas', async () => {
+    renderDashboard();
     expect(screen.getByText('Cargando dashboard...')).toBeInTheDocument();
-    pendientes.forEach((resolve) => resolve({ data: [], count: 0 }));
-    expect(await screen.findByRole('heading', { name: /Dashboard/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.queryByText('Cargando dashboard...')).not.toBeInTheDocument();
   });
 
-  it('suma ventas, inventario y usuarios', async () => {
+  it('suma las ventas de las órdenes exitosas', async () => {
     renderDashboard();
     expect(await screen.findByText('$15.000')).toBeInTheDocument();
     expect(screen.getByText('2 órdenes pagadas')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('13 unidades en inventario')).toBeInTheDocument();
-    expect(screen.getByText('4')).toBeInTheDocument();
-    expect(screen.getByText('cuentas registradas')).toBeInTheDocument();
   });
 
-  it('avisa cuando hay stock crítico y agrupa el gráfico por categoría', async () => {
+  it('cuenta productos y unidades en inventario', async () => {
     renderDashboard();
+    expect(await screen.findByText('13 unidades en inventario')).toBeInTheDocument(); // 2 + 8 + 3
+    expect(screen.getByText('Productos').parentElement.nextElementSibling).toHaveTextContent('3');
+  });
+
+  it('muestra la cantidad de usuarios registrados', async () => {
+    renderDashboard({ usuarios: 4 });
+    const texto = await screen.findByText('cuentas registradas');
+    expect(texto.previousElementSibling).toHaveTextContent('4');
+  });
+
+  it('avisa cuántos productos están en stock crítico', async () => {
+    renderDashboard();
+    // solo el de stock 2 con crítico 5; el que no tiene stock_critico no cuenta
     expect(await screen.findByText(/1 producto\(s\) con stock en nivel crítico/)).toBeInTheDocument();
-    expect(screen.getByText('Periféricos: 2')).toBeInTheDocument();
-    expect(screen.getByText('Componentes: 8')).toBeInTheDocument();
-    expect(screen.getByText('audio: 3')).toBeInTheDocument();
   });
 
-  it('sin stock crítico no muestra la alerta', async () => {
-    estado.productos = [{ stock: 9, stock_critico: 2, categoria: 'consolas' }];
-    estado.ordenes = [];
-    estado.usuarios = 0;
+  it('sin productos en stock crítico no muestra la alerta', async () => {
+    renderDashboard({ productos: [{ stock: 10, stock_critico: 2, categoria: 'componentes' }] });
+    await screen.findByRole('heading', { name: 'Dashboard' });
+    expect(screen.queryByText(/stock en nivel crítico/)).not.toBeInTheDocument();
+  });
+
+  it('agrupa el stock por categoría con su nombre legible', async () => {
     renderDashboard();
+    expect(await screen.findByText('Periféricos: 2')).toBeInTheDocument();
+    expect(screen.getByText('Componentes: 8')).toBeInTheDocument();
+    expect(screen.getByText('audio: 3')).toBeInTheDocument(); // categoría desconocida queda tal cual
+  });
+
+  it('sin datos muestra todo en cero', async () => {
+    renderDashboard({ ordenes: [], productos: [], usuarios: 0 });
     expect(await screen.findByText('$0')).toBeInTheDocument();
-    expect(screen.queryByText(/nivel crítico/)).not.toBeInTheDocument();
-    expect(screen.getByText('Consolas: 9')).toBeInTheDocument();
+    expect(screen.getByText('0 órdenes pagadas')).toBeInTheDocument();
+    expect(screen.getByText('0 unidades en inventario')).toBeInTheDocument();
+  });
+
+  it('tolera respuestas vacías y montos o stock nulos', async () => {
+    mocks.ordenes = undefined; // la consulta no devolvió datos
+    mocks.productos = undefined;
+    mocks.usuarios = 0;
+    const { unmount } = render(<AdminDashboard />);
+    expect(await screen.findByText('$0')).toBeInTheDocument();
+    expect(screen.getByText('0 unidades en inventario')).toBeInTheDocument();
+    unmount();
+
+    renderDashboard({
+      ordenes: [{ total: null, estado: 'exitosa' }],
+      productos: [{ stock: null, stock_critico: null, categoria: 'audio' }],
+    });
+    expect(await screen.findByText('1 órdenes pagadas')).toBeInTheDocument();
+    expect(screen.getByText('audio: 0')).toBeInTheDocument();
   });
 });

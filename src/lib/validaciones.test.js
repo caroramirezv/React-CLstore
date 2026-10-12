@@ -34,6 +34,14 @@ describe('validarRunChileno', () => {
     (run) => expect(validarRunChileno(run)).toBe(true)
   );
 
+  it('acepta un RUN cuyo dígito verificador es 0', () => {
+    expect(validarRunChileno('1.000.013-0')).toBe(true);
+  });
+
+  it('rechaza un RUN con letras en el cuerpo', () => {
+    expect(validarRunChileno('12A45678-5')).toBe(false);
+  });
+
   it.each(['12.345.678-9', 'abc', '', '1-9'])(
     'rechaza el RUN inválido "%s"',
     (run) => expect(validarRunChileno(run)).toBe(false)

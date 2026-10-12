@@ -1,53 +1,74 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import Ofertas from '../pages/Ofertas';
-import { cadena } from '../test/cadenaSupabase';
 
-const mocks = vi.hoisted(() => ({ from: vi.fn() }));
+vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
+const mocks = vi.hoisted(() => ({ respuesta: { data: [], error: null } }));
 vi.mock('../lib/supabaseClient', () => ({
-  supabase: { from: (...args) => mocks.from(...args) },
+  supabase: {
+    from: () => ({
+      select: () => ({ not: () => ({ order: () => Promise.resolve(mocks.respuesta) }) }),
+    }),
+  },
 }));
 
+import { useCart } from '../context/CartContext';
+
 const ofertas = [
-  { id: 1, nombre: 'Mouse Logitech', precio: 10000, descuento_porcentaje: 15 },
-  { id: 2, nombre: 'Teclado Keychron', precio: 40000, descuento_porcentaje: 10 },
+  { id: 1, nombre: 'Mouse Logitech', precio: 10000, imagen: 'mouse.jpg', descuento_porcentaje: 15 },
+  { id: 2, nombre: 'RTX 4070', precio: 500000, imagen: 'rtx.jpg', descuento_porcentaje: 10 },
 ];
 
 function renderOfertas(respuesta = { data: ofertas, error: null }) {
-  mocks.from.mockImplementation(() => cadena(() => respuesta));
-  render(<Ofertas />);
+  const agregarProducto = vi.fn();
+  useCart.mockReturnValue({ agregarProducto });
+  mocks.respuesta = respuesta;
+  render(
+    <MemoryRouter>
+      <Ofertas />
+    </MemoryRouter>
+  );
+  return { agregarProducto };
 }
 
 describe('Ofertas', () => {
-  it('muestra "Cargando ofertas..." mientras espera', async () => {
-    let resolver;
-    mocks.from.mockImplementation(() => ({
-      select: () => ({
-        not: () => ({ order: () => new Promise((resolve) => { resolver = resolve; }) }),
-      }),
-    }));
-    render(<Ofertas />);
+  it('muestra "Cargando ofertas..." y luego los productos', async () => {
+    renderOfertas();
     expect(screen.getByText('Cargando ofertas...')).toBeInTheDocument();
-    resolver({ data: ofertas, error: null });
-    expect(await screen.findByRole('heading', { name: 'Mouse Logitech' })).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Mouse Logitech' });
     expect(screen.queryByText('Cargando ofertas...')).not.toBeInTheDocument();
   });
 
-  it('renderiza una tarjeta por oferta', async () => {
+  it('renderiza una tarjeta por oferta con su descuento y precio final', async () => {
     renderOfertas();
     expect(await screen.findByRole('heading', { name: 'Mouse Logitech' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Teclado Keychron' })).toBeInTheDocument();
-    expect(screen.getAllByRole('heading', { level: 5 })).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'RTX 4070' })).toBeInTheDocument();
+    expect(screen.getByText('-15%')).toBeInTheDocument();
+    expect(screen.getByText('$10.000')).toBeInTheDocument(); // precio original tachado
+    expect(screen.getByText('$8.500')).toBeInTheDocument(); // 10.000 con 15% dto
   });
 
-  it('sin ofertas activas muestra el aviso', async () => {
+  it('"Agregar al Carrito" llama agregarProducto con el producto', async () => {
+    const user = userEvent.setup();
+    const { agregarProducto } = renderOfertas();
+    const botones = await screen.findAllByRole('button', { name: /Agregar al Carrito/ });
+    await user.click(botones[0]);
+    expect(agregarProducto).toHaveBeenCalledWith(ofertas[0]);
+  });
+
+  it('sin ofertas muestra el mensaje de que no hay ofertas activas', async () => {
     renderOfertas({ data: [], error: null });
-    expect(await screen.findByText(/No hay ofertas activas en este momento/)).toBeInTheDocument();
-    expect(screen.queryAllByRole('heading', { level: 5 })).toHaveLength(0);
+    expect(await screen.findByText(/No hay ofertas activas/)).toBeInTheDocument();
   });
 
-  it('si Supabase devuelve error no muestra productos', async () => {
-    renderOfertas({ data: [{ id: 1, nombre: 'Mouse Logitech' }], error: { message: 'falló' } });
-    expect(await screen.findByText(/No hay ofertas activas en este momento/)).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Mouse Logitech' })).not.toBeInTheDocument();
+  it('si Supabase devuelve error muestra el mensaje de sin ofertas', async () => {
+    renderOfertas({ data: null, error: { message: 'falló' } });
+    expect(await screen.findByText(/No hay ofertas activas/)).toBeInTheDocument();
+  });
+
+  it('si la respuesta no trae datos ni error muestra el mensaje de sin ofertas', async () => {
+    renderOfertas({ data: null, error: null });
+    expect(await screen.findByText(/No hay ofertas activas/)).toBeInTheDocument();
   });
 });

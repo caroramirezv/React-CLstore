@@ -173,5 +173,44 @@ describe('Checkout', () => {
       resolver({ data: { orden_id: 'ord-1', total: 20000 }, error: null });
       await waitFor(() => expect(navigate).toHaveBeenCalled());
     });
+
+    it('si tampoco se puede registrar la orden fallida lo deja en consola y avisa igual', async () => {
+      const consola = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mocks.rpc.mockImplementation(async (nombre) => {
+        if (nombre === 'crear_orden') return { data: null, error: { message: 'Sin stock' } };
+        return { data: null, error: { message: 'rpc caída' } };
+      });
+      const { user } = renderCheckout();
+      await completar(user);
+      await user.click(screen.getByRole('button', { name: 'Pagar $20.000' }));
+      await waitFor(() => expect(navigate).toHaveBeenCalledWith('/resumen-compra', {
+        state: { exito: false, motivo: 'Sin stock', ordenId: null },
+      }));
+      expect(consola).toHaveBeenCalledWith('Error guardando la orden fallida:', { message: 'rpc caída' });
+    });
+
+    it('sin teléfono ni total envía null y 0 al registrar la orden fallida', async () => {
+      mocks.rpc.mockImplementation(async (nombre) => {
+        if (nombre === 'crear_orden') return { data: null, error: { message: 'Sin stock' } };
+        return { data: 'fall-1', error: null };
+      });
+      const { user } = renderCheckout({ total: 0 });
+      await completar(user);
+      fireEvent.change(campo('Teléfono (Opcional)'), { target: { value: '' } });
+      await user.click(screen.getByRole('button', { name: 'Pagar $0' }));
+      await waitFor(() => expect(navigate).toHaveBeenCalled());
+      expect(mocks.rpc).toHaveBeenCalledWith('crear_orden', expect.objectContaining({ p_telefono: null }));
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        'registrar_orden_fallida',
+        expect.objectContaining({ p_telefono: null, p_total: 0 })
+      );
+    });
+
+    it('permite cambiar el método de pago', async () => {
+      const { user } = renderCheckout();
+      const metodo = screen.getByDisplayValue('Tarjeta de crédito/débito');
+      await user.selectOptions(metodo, 'transferencia');
+      expect(metodo).toHaveValue('transferencia');
+    });
   });
 });

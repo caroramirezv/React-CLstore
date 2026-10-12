@@ -123,4 +123,36 @@ describe('Productos', () => {
       expect(screen.getByText('No se encontraron productos.')).toBeInTheDocument();
     });
   });
+
+  describe('datos incompletos', () => {
+    it('si la respuesta no trae datos ni error muestra \"No se encontraron productos.\"', async () => {
+      mocks.respuesta = { data: null, error: null };
+      render(
+        <MemoryRouter>
+          <Productos />
+        </MemoryRouter>
+      );
+      expect(await screen.findByText('No se encontraron productos.')).toBeInTheDocument();
+    });
+
+    it('busca aunque un producto no tenga nombre o no tenga texto de búsqueda', async () => {
+      mocks.respuesta = {
+        data: [
+          { id: 4, nombre: 'Cable HDMI', precio: 5000, imagen: 'cable.jpg', categoria: 'perifericos', busqueda: null },
+          { id: 5, nombre: null, precio: 7000, imagen: 'adaptador.jpg', categoria: 'perifericos', busqueda: 'adaptador usb' },
+        ],
+        error: null,
+      };
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <Productos />
+        </MemoryRouter>
+      );
+      await screen.findByRole('heading', { name: 'Cable HDMI' });
+      await user.type(screen.getByPlaceholderText('Buscar productos...'), 'adaptador');
+      expect(screen.queryByRole('heading', { name: 'Cable HDMI' })).not.toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 5 })).toHaveLength(1);
+    });
+  });
 });
