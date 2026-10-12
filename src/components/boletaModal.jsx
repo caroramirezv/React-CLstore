@@ -4,7 +4,6 @@ import { formatoCLP } from '../lib/validaciones';
 export default function BoletaModal({ show, onClose, numOrden, codigoOrden, cliente, items, total }) {
   if (!show) return null;
 
-  // Cálculo de impuestos en Chile (IVA 19%)
   const neto = Math.round(total / 1.19);
   const iva = total - neto;
   const fechaActual = new Date().toLocaleDateString('es-CL', {
@@ -21,7 +20,6 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
 
   return (
     <>
-      {/* Estilos CSS para simular un documento fiscal/boleta tributaria */}
       <style>{`
         .boleta-paper {
           font-family: 'Courier New', Courier, monospace;
@@ -79,7 +77,6 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
         }
       `}</style>
 
-      {/* Fondo oscuro del Modal */}
       <div
         className="modal fade show d-block no-print"
         style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1050 }}
@@ -87,17 +84,13 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
       >
         <div className="modal-dialog modal-dialog-centered modal-lg">
           <div className="modal-content shadow-lg border-0">
-            {/* Header del Modal */}
             <div className="modal-header bg-light no-print">
               <h5 className="modal-title fw-bold text-dark">📄 Documento Tributario Electrónico</h5>
               <button type="button" className="btn-close" onClick={onClose}></button>
             </div>
-
-            {/* CUERPO DE LA BOLETA (HOJA FISCAL) */}
             <div className="modal-body p-4 p-md-5 bg-secondary bg-opacity-10" id="boleta-imprimir">
               <div className="boleta-paper border border-2 border-dark p-4 mx-auto shadow-sm" style={{ maxWidth: '650px' }}>
                 
-                {/* Encabezado: Datos Emisor + Recuadro Fiscal SII */}
                 <div className="row align-items-center mb-3">
                   <div className="col-7">
                     <h4 className="fw-bold mb-1 text-uppercase text-dark" style={{ letterSpacing: '1px' }}>CLSTORE SpA</h4>
@@ -107,7 +100,6 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
                     <p className="mb-0 text-muted" style={{ fontSize: '11px' }}>WWW.CLSTORE.CL | CONTACTO@CLSTORE.CL</p>
                   </div>
 
-                  {/* Recuadro Rojo de Boleta Electrónica SII */}
                   <div className="col-5">
                     <div className="border border-danger border-3 text-center p-2 text-danger">
                       <div className="fw-bold" style={{ fontSize: '13px' }}>R.U.T.: 77.345.890-K</div>
@@ -122,10 +114,8 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
                   </div>
                 </div>
 
-                {/* Separador Punteado Troquelado */}
                 <div className="border-dashed-bottom mb-3 pb-1"></div>
 
-                {/* Datos del Receptor / Cliente */}
                 <div className="row mb-3 text-uppercase" style={{ fontSize: '12px' }}>
                   <div className="col-7">
                     <p className="mb-1"><strong>SEÑOR(A):</strong> {cliente?.nombre} {cliente?.apellidos}</p>
@@ -140,7 +130,6 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
                   </div>
                 </div>
 
-                {/* Detalle de Productos (Tabla estilo comprobante fiscal) */}
                 <div className="table-responsive mb-3">
                   <table className="table table-sm border-top border-bottom border-dark text-uppercase align-middle mb-0" style={{ fontSize: '12px' }}>
                     <thead>
@@ -174,7 +163,6 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
                   </table>
                 </div>
 
-                {/* Totales y Desglose de Impuestos */}
                 <div className="row justify-content-end mb-3 text-uppercase" style={{ fontSize: '12px' }}>
                   <div className="col-6">
                     <div className="d-flex justify-content-between mb-1">
@@ -192,7 +180,6 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
                   </div>
                 </div>
 
-                {/* Pie Fiscal: Barcode + Timbre SII */}
                 <div className="border-dashed-top pt-3 text-center">
                   <div className="pdf417-barcode border border-dark mb-2"></div>
                   <div className="fw-bold text-uppercase mb-1" style={{ fontSize: '10px', letterSpacing: '1px' }}>
@@ -209,7 +196,6 @@ export default function BoletaModal({ show, onClose, numOrden, codigoOrden, clie
               </div>
             </div>
 
-            {/* Footer con Botones del Modal */}
             <div className="modal-footer bg-light no-print d-flex justify-content-between">
               <button type="button" className="btn btn-secondary px-4" onClick={onClose}>
                 Cerrar

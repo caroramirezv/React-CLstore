@@ -27,7 +27,6 @@ function renderRegistro(signUp = vi.fn().mockResolvedValue({ error: null })) {
   return { signUp, user: userEvent.setup() };
 }
 
-// Completa el formulario con datos válidos; cada test puede sobrescribir un campo.
 async function completar(user, cambios = {}) {
   const d = {
     run: '10000013k',

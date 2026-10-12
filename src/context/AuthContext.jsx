@@ -3,8 +3,6 @@ import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext(null);
 
-// La sesión vive en Supabase Auth; los datos de negocio (run, tipo, región, etc.)
-// viven en la tabla "perfiles", enlazada 1 a 1 con auth.users por id.
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [perfil, setPerfil] = useState(null);
@@ -46,30 +44,41 @@ export function AuthProvider({ children }) {
     const { error } = await supabase.auth.signInWithPassword({ email: correo, password });
     return { error };
   }
-
-  // Registro: crea el usuario en Supabase Auth y luego su fila en "perfiles".
-  async function signUp({ correo, password, run, nombre, apellidos, fechaNacimiento, region, comuna, direccion }) {
-    const { data, error } = await supabase.auth.signUp({ email: correo, password });
-    if (error) return { error };
-
-    const userId = data.user?.id;
-    if (userId) {
-      const { error: errorPerfil } = await supabase.from('perfiles').insert({
-        id: userId,
-        run,
-        nombre,
-        apellidos,
-        correo,
-        fecha_nacimiento: fechaNacimiento || null,
-        tipo: 'Cliente',
-        region,
-        comuna,
-        direccion,
+  
+    async function signUp({
+      correo,
+      password,
+      run,
+      nombre,
+      apellidos,
+      fechaNacimiento,
+      region,
+      comuna,
+      direccion,
+    }) {
+      const { data, error } = await supabase.auth.signUp({
+        email: correo,
+        password,
+        options: {
+          data: {
+            run,
+            nombre,
+            apellidos,
+            fecha_nacimiento: fechaNacimiento || null,
+            region,
+            comuna,
+            direccion,
+          },
+        },
       });
-      if (errorPerfil) return { error: errorPerfil };
+
+      if (error) return { error };
+
+      return {
+        error: null,
+        necesitaConfirmacion: !data.session,
+      };
     }
-    return { error: null, necesitaConfirmacion: !data.session };
-  }
 
   async function signOut() {
     await supabase.auth.signOut();

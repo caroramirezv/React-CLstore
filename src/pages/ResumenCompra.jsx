@@ -19,6 +19,7 @@ export default function ResumenCompra() {
         setCargando(false);
         return;
       }
+      
       const { data: orden } = await supabase.from('ordenes').select('*').eq('id', ordenId).single();
       if (!orden) {
         setCargando(false);
