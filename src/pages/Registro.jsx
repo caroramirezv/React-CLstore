@@ -57,8 +57,8 @@ export default function Registro() {
       Swal.fire('Error de Contraseña', 'Las contraseñas ingresadas no coinciden.', 'error');
       return;
     }
-
     setEnviando(true);
+    
     const { error } = await signUp({
       correo,
       password,
