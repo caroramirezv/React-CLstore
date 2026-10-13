@@ -1,2 +1,11 @@
 /* Administración: categorías */
 .content-body .card { border: 1px solid var(--cl-border); }
+
+/* Color de texto blanco y legible para el contador de productos (badge) */
+.content-body .badge,
+.content-body span[class*="badge"],
+.badge {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 600 !important;
+}

@@ -1,3 +1,12 @@
 /* Administración: productos */
 .content-body .form-control, .content-body .form-select { min-height: 42px; }
 .content-body .table td { vertical-align: middle; }
+
+/* Color de texto blanco y legible para el recuadro de categoría (badge) */
+.content-body .table td .badge,
+.content-body .table td span[class*="badge"],
+.table td .badge {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 600 !important;
+}
