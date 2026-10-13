@@ -1,28 +1,8 @@
-
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatoCLP } from '../../lib/validaciones';
 
-const CATEGORIAS_INICIALES = [
-  { valor: 'componentes', etiqueta: 'Componentes', icono: 'fa-microchip' },
-  { valor: 'consolas', etiqueta: 'Consolas & Laptops', icono: 'fa-gamepad' },
-  { valor: 'perifericos', etiqueta: 'Periféricos & Monitores', icono: 'fa-keyboard' },
-];
-
 const ICONO_DEFAULT = 'fa-folder';
-
-function etiquetaCategoria(valor) {
-  const conocida = CATEGORIAS_INICIALES.find(
-    (cat) => cat.valor === valor
-  );
-
-  if (conocida) return conocida.etiqueta;
-
-  return valor
-    .split(/[-_]/g)
-    .map((palabra) => palabra.charAt(0).toUpperCase() + palabra.slice(1))
-    .join(' ');
-}
 
 function generarValor(texto) {
   return texto
@@ -36,8 +16,10 @@ function generarValor(texto) {
 
 export default function AdminCategorias() {
   const [productos, setProductos] = useState([]);
+  const [categoriasDb, setCategoriasDb] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [nombre, setNombre] = useState('');
+  const [nuevaCategoria, setNuevaCategoria] = useState('');
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -45,17 +27,22 @@ export default function AdminCategorias() {
 
   async function cargarProductos() {
     setCargando(true);
-    setError('');
 
-    const { data, error } = await supabase
-      .from('productos')
-      .select('*')
-      .order('nombre');
+    const [resProductos, resCategorias] = await Promise.all([
+      supabase.from('productos').select('*').order('nombre'),
+      supabase.from('categorias').select('*').order('etiqueta'),
+    ]);
 
-    if (error) {
-      setError(`Error al cargar productos: ${error.message}`);
+    if (resProductos.error) {
+      setError(`Error al cargar productos: ${resProductos.error.message}`);
     } else {
-      setProductos(data || []);
+      setProductos(resProductos.data || []);
+    }
+
+    if (resCategorias.error) {
+      setError(`Error al cargar categorías: ${resCategorias.error.message}`);
+    } else {
+      setCategoriasDb(resCategorias.data || []);
     }
 
     setCargando(false);
@@ -65,25 +52,53 @@ export default function AdminCategorias() {
     cargarProductos();
   }, []);
 
-  const categorias = [
-    ...new Set(productos.map((p) => p.categoria).filter(Boolean)),
-  ].map((valor) => {
-    const conocida = CATEGORIAS_INICIALES.find(
-      (cat) => cat.valor === valor
-    );
-
-    return {
-      valor,
-      etiqueta: conocida?.etiqueta || etiquetaCategoria(valor),
-      icono: conocida?.icono || ICONO_DEFAULT,
-    };
-  });
+  const categorias = categoriasDb.map((c) => ({
+    valor: c.valor,
+    etiqueta: c.etiqueta,
+    icono: c.icono || ICONO_DEFAULT,
+  }));
 
   function cancelarEdicion() {
     setEditando(null);
     setNombre('');
+  }
+
+  async function crearCategoria(e) {
+    e.preventDefault();
+
+    const etiqueta = nuevaCategoria.trim();
+    const valor = generarValor(etiqueta);
+
+    if (!etiqueta || !valor) {
+      setError('Ingresa un nombre válido para la categoría.');
+      setMensaje('');
+      return;
+    }
+
+    if (categorias.some((cat) => cat.valor === valor)) {
+      setError('Esa categoría ya existe.');
+      setMensaje('');
+      return;
+    }
+
     setError('');
     setMensaje('');
+    setGuardando(true);
+
+    const { error: errorCrear } = await supabase
+      .from('categorias')
+      .insert({ valor, etiqueta });
+
+    setGuardando(false);
+
+    if (errorCrear) {
+      setError(`No se pudo crear la categoría: ${errorCrear.message}`);
+      return;
+    }
+
+    setNuevaCategoria('');
+    setMensaje(`Categoría "${etiqueta}" creada correctamente.`);
+    await cargarProductos();
   }
 
   async function guardarCategoria(e) {
@@ -94,39 +109,39 @@ export default function AdminCategorias() {
 
     if (!etiqueta || !valorNuevo) {
       setError('Ingresa un nombre válido para la categoría.');
+      setMensaje('');
+      return;
+    }
+
+    if (
+      valorNuevo !== editando.valor &&
+      categorias.some((cat) => cat.valor === valorNuevo)
+    ) {
+      setError('Ya existe otra categoría con ese nombre.');
+      setMensaje('');
       return;
     }
 
     setError('');
     setMensaje('');
+    setGuardando(true);
 
-    if (editando) {
-      const { error: errorActualizar } = await supabase
-        .from('productos')
-        .update({ categoria: valorNuevo })
-        .eq('categoria', editando.valor);
+    // Al cambiar "valor", la clave foránea (on update cascade)
+    // actualiza automáticamente la categoría de sus productos.
+    const { error: errorActualizar } = await supabase
+      .from('categorias')
+      .update({ valor: valorNuevo, etiqueta })
+      .eq('valor', editando.valor);
 
-      if (errorActualizar) {
-        setError(
-          `No se pudo actualizar la categoría. Comprueba la restricción CHECK de productos.categoria: ${errorActualizar.message}`
-        );
-        return;
-      }
+    setGuardando(false);
 
-      setMensaje('Categoría actualizada correctamente.');
-    } else {
-      if (categorias.some((cat) => cat.valor === valorNuevo)) {
-        setError('Esa categoría ya existe.');
-        return;
-      }
-
-      setError(
-        'Tu tabla productos no tiene una tabla independiente de categorías. Para crear una categoría nueva, primero debes permitir su valor en la restricción CHECK y después asignarla a uno o más productos.'
-      );
+    if (errorActualizar) {
+      setError(`No se pudo actualizar la categoría: ${errorActualizar.message}`);
       return;
     }
 
     cancelarEdicion();
+    setMensaje('Categoría actualizada correctamente.');
     await cargarProductos();
   }
 
@@ -139,12 +154,25 @@ export default function AdminCategorias() {
       setError(
         `No se puede eliminar "${categoria.etiqueta}" porque tiene ${asociados.length} producto(s). Cambia primero su categoría desde la administración de productos.`
       );
+      setMensaje('');
       return;
     }
 
-    setError(
-      'Las categorías se obtienen de los productos. Cuando no queden productos asociados, desaparecerán automáticamente de esta página.'
-    );
+    const { error: errorEliminar } = await supabase
+      .from('categorias')
+      .delete()
+      .eq('valor', categoria.valor);
+
+    if (errorEliminar) {
+      setError(`No se pudo eliminar la categoría: ${errorEliminar.message}`);
+      setMensaje('');
+      return;
+    }
+
+    if (editando?.valor === categoria.valor) cancelarEdicion();
+    setError('');
+    setMensaje(`Categoría "${categoria.etiqueta}" eliminada.`);
+    await cargarProductos();
   }
 
   if (cargando) {
@@ -175,6 +203,36 @@ export default function AdminCategorias() {
 
       {error && <div className="alert alert-warning">{error}</div>}
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
+
+      <div className="card border-0 shadow-sm rounded-3 mb-4">
+        <div className="card-header bg-white py-3">
+          <h5 className="fw-bold mb-0">
+            <i className="fa-solid fa-plus me-2"></i>
+            Crear categoría
+          </h5>
+        </div>
+
+        <div className="card-body">
+          <form onSubmit={crearCategoria} className="d-flex gap-2 flex-wrap">
+            <input
+              className="form-control flex-grow-1"
+              style={{ minWidth: 220, width: 'auto' }}
+              placeholder="Nombre de la nueva categoría"
+              value={nuevaCategoria}
+              onChange={(e) => setNuevaCategoria(e.target.value)}
+              maxLength={100}
+              required
+            />
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={guardando}
+            >
+              Crear categoría
+            </button>
+          </form>
+        </div>
+      </div>
 
       <div className="card border-0 shadow-sm rounded-3 mb-4">
         <div className="card-header bg-white py-3">
@@ -210,7 +268,11 @@ export default function AdminCategorias() {
               <button
                 className="btn btn-outline-secondary"
                 type="button"
-                onClick={cancelarEdicion}
+                onClick={() => {
+                  cancelarEdicion();
+                  setError('');
+                  setMensaje('');
+                }}
               >
                 Cancelar
               </button>
@@ -223,7 +285,7 @@ export default function AdminCategorias() {
 
       {categorias.length === 0 ? (
         <div className="alert alert-info">
-          No se encontraron categorías en los productos.
+          Aún no hay categorías. Crea la primera con el formulario de arriba.
         </div>
       ) : (
         categorias.map((cat) => {

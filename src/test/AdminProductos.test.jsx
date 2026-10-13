@@ -6,9 +6,10 @@ import AdminProductos from '../pages/Admin/AdminProductos';
 vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }));
 vi.mock('bootstrap', () => ({ Modal: { getInstance: () => null } }));
 
-// Una función por operación: listar, buscar repetido, insertar, actualizar y borrar.
 const mocks = vi.hoisted(() => ({
   lista: { data: [] },
+  categorias: { data: [] },
+  cargarCategorias: vi.fn(),
   existente: { data: null },
   insert: vi.fn(),
   update: vi.fn(),
@@ -23,11 +24,13 @@ vi.mock('../lib/supabaseClient', () => ({
         getPublicUrl: (ruta) => ({ data: { publicUrl: `https://cdn.test/${ruta}` } }),
       }),
     },
-    from: () => ({
-      select: (columnas) =>
-        columnas === '*'
+    from: (tabla) => ({
+      select: (columnas) => {
+        if (tabla === 'categorias') return { order: () => mocks.cargarCategorias() };
+        return columnas === '*'
           ? { order: () => Promise.resolve(mocks.lista) }
-          : { eq: () => ({ maybeSingle: () => Promise.resolve(mocks.existente) }) },
+          : { eq: () => ({ maybeSingle: () => Promise.resolve(mocks.existente) }) };
+      },
       insert: (fila) => mocks.insert(fila),
       update: (payload) => ({ eq: (col, valor) => mocks.update(payload, col, valor) }),
       delete: () => ({ eq: (col, valor) => mocks.eliminar(col, valor) }),
@@ -42,12 +45,21 @@ const productos = [
     imagen: '', descuento_porcentaje: null },
 ];
 
+const categoriasTabla = [
+  { valor: 'componentes', etiqueta: 'Componentes' },
+  { valor: 'consolas', etiqueta: 'Consolas & Laptops' },
+  { valor: 'gaming_gear', etiqueta: 'Gaming Gear' },
+  { valor: 'perifericos', etiqueta: 'Periféricos & Monitores' },
+];
+
 const campo = (etiqueta) =>
   screen.getByText(etiqueta, { selector: 'label' }).parentElement.querySelector('input, select, textarea');
 const escribir = (etiqueta, valor) => fireEvent.change(campo(etiqueta), { target: { value: valor } });
 const enviar = () => fireEvent.submit(campo('Nombre *').closest('form'));
 const fila = (nombre) => screen.getByText(nombre).closest('tr');
 const toast = (titulo) => expect.objectContaining({ title: titulo });
+const opcionesCategoria = () =>
+  Array.from(campo('Categoría *').querySelectorAll('option')).map((o) => o.textContent);
 
 async function renderProductos(lista = productos) {
   mocks.lista = { data: lista };
@@ -69,6 +81,8 @@ describe('AdminProductos', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Swal.fire.mockResolvedValue({ isConfirmed: true });
+    mocks.categorias = { data: categoriasTabla };
+    mocks.cargarCategorias.mockImplementation(() => Promise.resolve(mocks.categorias));
     mocks.existente = { data: null };
     mocks.insert.mockResolvedValue({ error: null });
     mocks.update.mockResolvedValue({ error: null });
@@ -78,7 +92,7 @@ describe('AdminProductos', () => {
   });
 
   describe('listado', () => {
-    it('muestra una fila por producto con categoría, precio y oferta', async () => {
+    it('muestra una fila por producto con la etiqueta de su categoría, precio y oferta', async () => {
       await renderProductos();
       const mouse = within(fila('Mouse Logitech'));
       expect(mouse.getByText('MOUSE1')).toBeInTheDocument();
@@ -97,6 +111,66 @@ describe('AdminProductos', () => {
     it('sin productos muestra el mensaje de vacío', async () => {
       await renderProductos([]);
       expect(await screen.findByText('No hay productos guardados todavía.')).toBeInTheDocument();
+    });
+  });
+
+  describe('categorías del formulario', () => {
+    it('el selector lista las categorías de la tabla categorias', async () => {
+      await renderProductos();
+      expect(opcionesCategoria()).toEqual([
+        'Seleccione Categoría',
+        'Componentes',
+        'Consolas & Laptops',
+        'Gaming Gear',
+        'Periféricos & Monitores',
+      ]);
+    });
+
+    it('sin categorías en la tabla solo queda la opción inicial', async () => {
+      mocks.categorias = { data: null };
+      await renderProductos();
+      expect(opcionesCategoria()).toEqual(['Seleccione Categoría']);
+    });
+
+    it('lee las categorías al cargar la página', async () => {
+      await renderProductos();
+      expect(mocks.cargarCategorias).toHaveBeenCalledTimes(1);
+    });
+
+    it('vuelve a leer las categorías al abrir el formulario de creación', async () => {
+      const user = await renderProductos();
+      await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
+      expect(mocks.cargarCategorias).toHaveBeenCalledTimes(2);
+    });
+
+    it('vuelve a leer las categorías al abrir el formulario de edición', async () => {
+      const user = await renderProductos();
+      await user.click(within(fila('Mouse Logitech')).getAllByRole('button')[0]);
+      expect(mocks.cargarCategorias).toHaveBeenCalledTimes(2);
+    });
+
+    it('muestra una categoría creada después de cargar la página', async () => {
+      const user = await renderProductos();
+      mocks.categorias = { data: [...categoriasTabla, { valor: 'audio', etiqueta: 'Audio' }] };
+      await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
+      await waitFor(() => expect(opcionesCategoria()).toContain('Audio'));
+    });
+
+    it('guarda un producto nuevo con una categoría que no estaba entre las tres originales', async () => {
+      const user = await renderProductos();
+      await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
+      llenarProductoNuevo();
+      escribir('Categoría *', 'gaming_gear');
+      enviar();
+      await waitFor(() =>
+        expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ id: 'TEC1', categoria: 'gaming_gear' }))
+      );
+    });
+
+    it('al editar deja seleccionada la categoría del producto', async () => {
+      const user = await renderProductos();
+      await user.click(within(fila('Mouse Logitech')).getAllByRole('button')[0]);
+      expect(campo('Categoría *')).toHaveValue('perifericos');
     });
   });
 
@@ -273,6 +347,20 @@ describe('AdminProductos', () => {
       expect(Swal.fire).toHaveBeenCalledWith(toast('Producto actualizado'));
       expect(mocks.insert).not.toHaveBeenCalled();
     });
+
+    it('permite cambiar el producto a otra categoría de la tabla', async () => {
+      const user = await renderProductos();
+      await user.click(within(fila('Mouse Logitech')).getAllByRole('button')[0]);
+      escribir('Categoría *', 'gaming_gear');
+      enviar();
+      await waitFor(() =>
+        expect(mocks.update).toHaveBeenCalledWith(
+          expect.objectContaining({ categoria: 'gaming_gear' }),
+          'id',
+          'MOUSE1'
+        )
+      );
+    });
   });
 
   describe('eliminar', () => {
@@ -307,7 +395,7 @@ describe('AdminProductos', () => {
       expect(await screen.findByText('No hay productos guardados todavía.')).toBeInTheDocument();
     });
 
-    it('muestra la categoría tal cual si no es conocida y 0 si no hay stock', async () => {
+    it('muestra el valor de la categoría tal cual si no está en la tabla y 0 si no hay stock', async () => {
       await renderProductos([
         { id: 'CAB1', nombre: 'Cable', precio: 1500, stock: null, stock_critico: null, categoria: 'audio', imagen: '', descuento_porcentaje: null },
       ]);
@@ -326,6 +414,7 @@ describe('AdminProductos', () => {
       expect(campo('Descripción (Opcional)')).toHaveValue('');
       expect(campo('Precio ($) *')).toHaveValue(null);
       expect(campo('Stock Crítico')).toHaveValue(null);
+      expect(campo('Categoría *')).toHaveValue('');
     });
 
     it('si Supabase falla al actualizar muestra el error', async () => {

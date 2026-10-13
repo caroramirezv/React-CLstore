@@ -4,19 +4,12 @@ import Swal from 'sweetalert2';
 import { supabase } from '../../lib/supabaseClient';
 import { formatoCLP } from '../../lib/validaciones';
 
-const CATEGORIA_LABELS = {
-  componentes: 'Componentes',
-  consolas: 'Consolas & Laptops',
-  perifericos: 'Periféricos & Monitores',
-
-};
-
-
 const formVacio = {
   id: '', nombre: '', descripcion: '', precio: '', stock: '', stockCritico: '', categoria: '', imagen: '', descuento: '',
 };
 
 export default function AdminProductos() {
+  const [categorias, setCategorias] = useState([]);
   const [productos, setProductos] = useState([]);
   const [form, setForm] = useState(formVacio);
   const [esEdicion, setEsEdicion] = useState(false);
@@ -28,11 +21,21 @@ export default function AdminProductos() {
     setProductos(data || []);
   }
 
+    async function cargarCategorias() {
+    const { data } = await supabase
+      .from('categorias')
+      .select('valor, etiqueta')
+      .order('etiqueta');
+    setCategorias(data || []);
+  }
+
   useEffect(() => {
     cargarProductos();
+    cargarCategorias();
   }, []);
 
   function abrirCreacion() {
+    cargarCategorias();
     setForm(formVacio);
     setImagenArchivo(null);
     setImagenPreview('');
@@ -40,7 +43,7 @@ export default function AdminProductos() {
   }
 
   function abrirEdicion(p) {
-
+    cargarCategorias();
     setForm({
       id: p.id,
       nombre: p.nombre || '',
@@ -204,7 +207,11 @@ export default function AdminProductos() {
                     <td><img src={p.imagen || '/img/Logo.png'} alt={p.nombre} style={{ width: 48, height: 48, objectFit: 'cover' }} className="rounded" /></td>
                     <td className="text-muted">{p.id}</td>
                     <td className="fw-semibold">{p.nombre}</td>
-                    <td><span className="badge bg-secondary">{CATEGORIA_LABELS[p.categoria] || p.categoria}</span></td>
+                    <td>
+                      <span className="badge bg-secondary">
+                        {categorias.find((c) => c.valor === p.categoria)?.etiqueta || p.categoria}
+                      </span>
+                    </td>
                     <td>{formatoCLP(p.precio)}</td>
                     <td>
                       {p.stock ?? 0}
@@ -288,9 +295,9 @@ export default function AdminProductos() {
                   <label className="form-label fw-semibold">Categoría *</label>
                   <select className="form-select" required value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
                     <option value="">Seleccione Categoría</option>
-                    <option value="componentes">Componentes</option>
-                    <option value="consolas">Consolas & Laptops</option>
-                    <option value="perifericos">Periféricos & Monitores</option>
+                    {categorias.map((c) => (
+                      <option key={c.valor} value={c.valor}>{c.etiqueta}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="col-md-6">
