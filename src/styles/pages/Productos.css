@@ -4,3 +4,75 @@ body:has(.btn-filter) .input-group { border-radius: 14px; box-shadow: 0 5px 20px
 body:has(.btn-filter) .input-group-text, body:has(.btn-filter) .input-group .form-control { border-color: #dfe5ee; padding-top: .8rem; padding-bottom: .8rem; }
 .btn-filter { white-space: nowrap; font-weight: 650; padding: .62rem 1.1rem; transition: all .2s ease; }
 .btn-filter:hover { transform: translateY(-1px); }
+
+.card,
+.card-body,
+.card > div,
+.card:focus,
+.card:active,
+.card:focus-within,
+body.swal2-shown .card,
+body.swal2-toast-shown .card,
+body:has(.swal2-container) .card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Forzar títulos legibles */
+.card .card-title,
+.card h5,
+.card h6,
+.card strong {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+/* Precios */
+.card [class*="price"],
+.card span:not(.badge) {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+.card del,
+.card .text-muted {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+/* Botón "Más Información" */
+.card a.btn,
+.card button:not(.btn-primary):not([class*="btn-primary"]) {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+  font-weight: 600 !important;
+}
+
+.card a.btn:hover,
+.card button:not(.btn-primary):hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+/* Botón "Agregar al Carrito" */
+.card .btn-primary,
+.card button[class*="btn-primary"],
+.card button:last-of-type {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+}
+
+.card .btn-primary:hover,
+.card button[class*="btn-primary"]:hover {
+  background-color: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
