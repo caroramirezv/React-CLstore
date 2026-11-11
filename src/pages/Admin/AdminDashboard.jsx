@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient'; // órdenes y perfiles (aún en Supabase)
+import { listarProductos } from '../../api/productosApi';
+import { aResultado } from '../../api/http';
 import { formatoCLP } from '../../lib/validaciones';
 
 const CATEGORIA_LABELS = {
@@ -25,7 +27,7 @@ export default function AdminDashboard() {
     async function cargar() {
       const [ordenesRes, productosRes, usuariosRes] = await Promise.all([
         supabase.from('ordenes').select('total, estado').eq('estado', 'exitosa'),
-        supabase.from('productos').select('stock, stock_critico, categoria'),
+        aResultado(listarProductos()),
         supabase.from('perfiles').select('id', { count: 'exact', head: true }),
       ]);
 

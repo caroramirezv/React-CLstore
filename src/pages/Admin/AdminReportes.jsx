@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient'; // órdenes, perfiles y artículos (aún en Supabase)
+import { listarProductos } from '../../api/productosApi';
+import { listarBlogs } from '../../api/blogsApi';
+import { aResultado } from '../../api/http';
 import { formatoCLP } from '../../lib/validaciones';
 
 const inicioMes = () => {
@@ -29,17 +32,13 @@ async function cargarReportes() {
 
         .order('creado_en', { ascending: false })],
 
-      ['productos', supabase
-        .from('productos')
-        .select('id, nombre, categoria, precio, stock, stock_critico')],
+      ['productos', aResultado(listarProductos())],
 
       ['perfiles', supabase
         .from('perfiles')
         .select('id, tipo, created_at')],
 
-      ['blogs', supabase
-        .from('blogs')
-        .select('id, titulo, created_at')],
+      ['blogs', aResultado(listarBlogs())],
 
       ['artículos de órdenes', supabase
         .from('orden_items')

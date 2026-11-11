@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { listarProductos } from '../../api/productosApi';
+import * as categoriasApi from '../../api/categoriasApi';
 import { formatoCLP } from '../../lib/validaciones';
 
 const ICONO_DEFAULT = 'fa-folder';
@@ -28,21 +29,21 @@ export default function AdminCategorias() {
   async function cargarProductos() {
     setCargando(true);
 
-    const [resProductos, resCategorias] = await Promise.all([
-      supabase.from('productos').select('*').order('nombre'),
-      supabase.from('categorias').select('*').order('etiqueta'),
+    const [resProductos, resCategorias] = await Promise.allSettled([
+      listarProductos({ orden: 'nombre' }),
+      categoriasApi.listarCategorias(),
     ]);
 
-    if (resProductos.error) {
-      setError(`Error al cargar productos: ${resProductos.error.message}`);
+    if (resProductos.status === 'rejected') {
+      setError(`Error al cargar productos: ${resProductos.reason?.message}`);
     } else {
-      setProductos(resProductos.data || []);
+      setProductos(resProductos.value || []);
     }
 
-    if (resCategorias.error) {
-      setError(`Error al cargar categorías: ${resCategorias.error.message}`);
+    if (resCategorias.status === 'rejected') {
+      setError(`Error al cargar categorías: ${resCategorias.reason?.message}`);
     } else {
-      setCategoriasDb(resCategorias.data || []);
+      setCategoriasDb(resCategorias.value || []);
     }
 
     setCargando(false);
@@ -85,9 +86,12 @@ export default function AdminCategorias() {
     setMensaje('');
     setGuardando(true);
 
-    const { error: errorCrear } = await supabase
-      .from('categorias')
-      .insert({ valor, etiqueta });
+    let errorCrear = null;
+    try {
+      await categoriasApi.crearCategoria({ etiqueta });
+    } catch (err) {
+      errorCrear = err;
+    }
 
     setGuardando(false);
 
@@ -126,12 +130,14 @@ export default function AdminCategorias() {
     setMensaje('');
     setGuardando(true);
 
-    // Al cambiar "valor", la clave foránea (on update cascade)
-    // actualiza automáticamente la categoría de sus productos.
-    const { error: errorActualizar } = await supabase
-      .from('categorias')
-      .update({ valor: valorNuevo, etiqueta })
-      .eq('valor', editando.valor);
+    // El "valor" (identificador) no cambia: los productos lo referencian desde otra base de datos.
+    // Solo se actualiza la etiqueta visible.
+    let errorActualizar = null;
+    try {
+      await categoriasApi.actualizarCategoria(editando.valor, { etiqueta });
+    } catch (err) {
+      errorActualizar = err;
+    }
 
     setGuardando(false);
 
@@ -158,10 +164,12 @@ export default function AdminCategorias() {
       return;
     }
 
-    const { error: errorEliminar } = await supabase
-      .from('categorias')
-      .delete()
-      .eq('valor', categoria.valor);
+    let errorEliminar = null;
+    try {
+      await categoriasApi.eliminarCategoria(categoria.valor);
+    } catch (err) {
+      errorEliminar = err;
+    }
 
     if (errorEliminar) {
       setError(`No se pudo eliminar la categoría: ${errorEliminar.message}`);

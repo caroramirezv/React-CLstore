@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
-import { supabase } from '../../lib/supabaseClient';
+import {
+  listarProductos,
+  crearProducto,
+  actualizarProducto,
+  eliminarProducto,
+  subirImagenProducto,
+} from '../../api/productosApi';
+import { listarCategorias } from '../../api/categoriasApi';
 import { formatoCLP } from '../../lib/validaciones';
 
 const formVacio = {
@@ -17,16 +24,19 @@ export default function AdminProductos() {
   const [imagenPreview, setImagenPreview] = useState('');
 
   async function cargarProductos() {
-    const { data } = await supabase.from('productos').select('*').order('nombre');
-    setProductos(data || []);
+    try {
+      setProductos((await listarProductos({ orden: 'nombre' })) || []);
+    } catch {
+      setProductos([]);
+    }
   }
 
-    async function cargarCategorias() {
-    const { data } = await supabase
-      .from('categorias')
-      .select('valor, etiqueta')
-      .order('etiqueta');
-    setCategorias(data || []);
+  async function cargarCategorias() {
+    try {
+      setCategorias((await listarCategorias()) || []);
+    } catch {
+      setCategorias([]);
+    }
   }
 
   useEffect(() => {
@@ -113,49 +123,34 @@ export default function AdminProductos() {
     let imagenFinal = form.imagen || '/img/Logo.png';
 
     if (imagenArchivo) {
-      const extension = imagenArchivo.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const extensionSegura = extension.replace(/[^a-z0-9]/g, '') || 'jpg';
-      const nombreArchivo = `${form.id}/${Date.now()}.${extensionSegura}`;
-      const { error: errorSubida } = await supabase.storage
-        .from('productos')
-        .upload(nombreArchivo, imagenArchivo, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: imagenArchivo.type,
-        });
-
-      if (errorSubida) {
-        Swal.fire(
-          'No se pudo subir la imagen',
-          `${errorSubida.message}. Comprueba que exista el bucket de Storage llamado "productos" y que tenga los permisos necesarios.`,
-          'error'
-        );
+      try {
+        imagenFinal = await subirImagenProducto(imagenArchivo);
+      } catch (error) {
+        Swal.fire('No se pudo subir la imagen', error.message, 'error');
         return;
       }
-
-      const { data: urlPublica } = supabase.storage
-        .from('productos')
-        .getPublicUrl(nombreArchivo);
-      imagenFinal = urlPublica.publicUrl;
     }
 
+    // "busqueda" la calcula ms-productos a partir del nombre.
     const payload = {
       nombre: form.nombre, descripcion: form.descripcion, precio, stock,
       stock_critico: stockCritico, categoria: form.categoria,
-      imagen: imagenFinal, busqueda: form.nombre.toLowerCase(),
-      descuento_porcentaje: descuento,
+      imagen: imagenFinal, descuento_porcentaje: descuento,
     };
 
-
-
-    if (esEdicion) {
-      const { error } = await supabase.from('productos').update(payload).eq('id', form.id);
-      if (error) { Swal.fire('Error', error.message, 'error'); return; }
-    } else {
-      const { data: existente } = await supabase.from('productos').select('id').eq('id', form.id).maybeSingle();
-      if (existente) { Swal.fire('Código repetido', 'Ya existe un producto con ese código.', 'error'); return; }
-      const { error } = await supabase.from('productos').insert({ id: form.id, ...payload });
-      if (error) { Swal.fire('Error', error.message, 'error'); return; }
+    try {
+      if (esEdicion) {
+        await actualizarProducto(form.id, payload);
+      } else {
+        await crearProducto({ id: form.id, ...payload });
+      }
+    } catch (error) {
+      if (!esEdicion && error.status === 409) {
+        Swal.fire('Código repetido', 'Ya existe un producto con ese código.', 'error');
+      } else {
+        Swal.fire('Error', error.message, 'error');
+      }
+      return;
     }
 
     await cargarProductos();
@@ -173,8 +168,12 @@ export default function AdminProductos() {
     });
     if (!resultado.isConfirmed) return;
 
-    const { error } = await supabase.from('productos').delete().eq('id', id);
-    if (error) { Swal.fire('Error', error.message, 'error'); return; }
+    try {
+      await eliminarProducto(id);
+    } catch (error) {
+      Swal.fire('Error', error.message, 'error');
+      return;
+    }
     await cargarProductos();
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Producto eliminado', showConfirmButton: false, timer: 1500 });
   }

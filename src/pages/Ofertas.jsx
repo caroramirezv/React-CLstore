@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { listarProductos } from '../api/productosApi';
 import ProductCard from '../components/ProductCard';
 
 export default function Ofertas() {
@@ -7,15 +7,10 @@ export default function Ofertas() {
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from('productos')
-      .select('*')
-      .not('descuento_porcentaje', 'is', null)
-      .order('descuento_porcentaje', { ascending: false })
-      .then(({ data, error }) => {
-        if (!error) setProductos(data || []);
-        setCargando(false);
-      });
+    listarProductos({ oferta: true, orden: 'descuento_desc' })
+      .then((data) => setProductos(data || []))
+      .catch(() => setProductos([]))
+      .finally(() => setCargando(false));
   }, []);
 
   return (

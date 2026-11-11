@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { listarProductos } from '../api/productosApi';
+import { listarCategorias } from '../api/categoriasApi';
 import ProductCard from '../components/ProductCard';
 
 const FILTROS = [
@@ -13,16 +14,26 @@ export default function Productos() {
   const [productos, setProductos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState('all');
+  const [filtros, setFiltros] = useState(FILTROS);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from('productos')
-      .select('*')
-      .then(({ data, error }) => {
-        if (!error) setProductos(data || []);
-        setCargando(false);
-      });
+    listarProductos()
+      .then((data) => setProductos(data || []))
+      .catch(() => setProductos([]))
+      .finally(() => setCargando(false));
+  }, []);
+
+  useEffect(() => {
+    listarCategorias()
+      .then((categorias) => {
+        if (!categorias || categorias.length === 0) return;
+        setFiltros([
+          FILTROS[0],
+          ...categorias.map((c) => ({ valor: c.valor, etiqueta: c.etiqueta })),
+        ]);
+      })
+      .catch(() => {}); 
   }, []);
 
   const filtrados = useMemo(() => {
@@ -58,7 +69,7 @@ export default function Productos() {
       </div>
 
       <div className="d-flex gap-2 overflow-auto pb-3 mb-4">
-        {FILTROS.map((f) => (
+        {filtros.map((f) => (
           <button
             key={f.valor}
             className={`btn rounded-pill btn-filter ${filtro === f.valor ? 'btn-primary active' : 'btn-outline-secondary'}`}

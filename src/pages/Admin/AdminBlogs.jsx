@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
-import { supabase } from '../../lib/supabaseClient';
+import {
+  listarBlogs,
+  crearBlog,
+  actualizarBlog,
+  eliminarBlog,
+  subirImagenBlog,
+} from '../../api/blogsApi';
 
 const FORM_VACIO = {
   id: '', titulo: '', resumen: '', imagen: '', contenidoTexto: '', fuente_nombre: '', fuente_url: '',
@@ -19,11 +25,12 @@ export default function AdminBlogs() {
 
   async function cargarBlogs() {
     setCargando(true);
-    const { data, error } = await supabase.from('blogs').select('*').order('created_at', { ascending: false });
-    if (error) {
+    try {
+      setBlogs((await listarBlogs()) || []);
+    } catch (error) {
       Swal.fire('No se pudieron cargar los blogs', error.message, 'error');
       setBlogs([]);
-    } else setBlogs(data || []);
+    }
     setCargando(false);
   }
 
@@ -82,24 +89,9 @@ export default function AdminBlogs() {
 
     setGuardando(true);
     try {
-      if (!esEdicion) {
-        const { data: existente, error: errorConsulta } = await supabase.from('blogs').select('id').eq('id', form.id.trim()).maybeSingle();
-        if (errorConsulta) throw errorConsulta;
-        if (existente) {
-          Swal.fire('Identificador repetido', 'Ya existe un blog con ese identificador.', 'error');
-          return;
-        }
-      }
-
       let imagenFinal = form.imagen.trim();
       if (imagenArchivo) {
-        const extension = imagenArchivo.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-        const ruta = `${form.id.trim().replace(/[^a-zA-Z0-9_-]/g, '-')}/${Date.now()}.${extension}`;
-        const { error: errorSubida } = await supabase.storage.from('blogs').upload(ruta, imagenArchivo, {
-          cacheControl: '3600', upsert: false, contentType: imagenArchivo.type,
-        });
-        if (errorSubida) throw new Error(`${errorSubida.message}. Comprueba que exista el bucket de Storage "blogs" y sus permisos.`);
-        imagenFinal = supabase.storage.from('blogs').getPublicUrl(ruta).data.publicUrl;
+        imagenFinal = await subirImagenBlog(imagenArchivo);
       }
 
       const contenido = form.contenidoTexto.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
@@ -107,16 +99,21 @@ export default function AdminBlogs() {
         titulo: form.titulo.trim(), resumen: form.resumen.trim(), imagen: imagenFinal || null,
         contenido, fuente_nombre: form.fuente_nombre.trim() || null, fuente_url: form.fuente_url.trim() || null,
       };
-      const resultado = esEdicion
-        ? await supabase.from('blogs').update(payload).eq('id', form.id.trim())
-        : await supabase.from('blogs').insert({ id: form.id.trim(), ...payload });
-      if (resultado.error) throw resultado.error;
+      if (esEdicion) {
+        await actualizarBlog(form.id.trim(), payload);
+      } else {
+        await crearBlog({ id: form.id.trim(), ...payload });
+      }
 
       cerrarModal();
       await cargarBlogs();
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: esEdicion ? 'Blog actualizado' : 'Blog creado', showConfirmButton: false, timer: 1800 });
     } catch (error) {
-      Swal.fire('No se pudo guardar el blog', error.message || 'Ocurrió un error inesperado.', 'error');
+      if (!esEdicion && error.status === 409) {
+        Swal.fire('Identificador repetido', 'Ya existe un blog con ese identificador.', 'error');
+      } else {
+        Swal.fire('No se pudo guardar el blog', error.message || 'Ocurrió un error inesperado.', 'error');
+      }
     } finally {
       setGuardando(false);
     }
@@ -128,8 +125,12 @@ export default function AdminBlogs() {
       showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar', confirmButtonColor: '#800000',
     });
     if (!confirmacion.isConfirmed) return;
-    const { error } = await supabase.from('blogs').delete().eq('id', blog.id);
-    if (error) { Swal.fire('No se pudo eliminar', error.message, 'error'); return; }
+    try {
+      await eliminarBlog(blog.id);
+    } catch (error) {
+      Swal.fire('No se pudo eliminar', error.message, 'error');
+      return;
+    }
     await cargarBlogs();
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Blog eliminado', showConfirmButton: false, timer: 1500 });
   }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { obtenerBlog } from '../api/blogsApi';
 
 export default function BlogDetalle() {
   const { id } = useParams();
@@ -9,12 +9,9 @@ export default function BlogDetalle() {
 
   useEffect(() => {
     setCargando(true);
-    supabase
-      .from('blogs')
-      .select('*')
-      .eq('id', id)
-      .single()
-      .then(({ data }) => {
+    obtenerBlog(id)
+      .catch(() => null) 
+      .then((data) => {
         setBlog(data || null);
         setCargando(false);
         if (data) document.title = `${data.titulo} - CLstore Blogs`;

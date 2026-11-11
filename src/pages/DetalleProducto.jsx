@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient'; 
+import { listarProductos, obtenerProducto } from '../api/productosApi';
 import { formatoCLP, calcularPrecioFinal } from '../lib/validaciones';
 import { useCart } from '../context/CartContext';
 import ProductCard from '../components/ProductCard';
@@ -18,24 +19,25 @@ export default function DetalleProducto() {
     setCargando(true);
 
     async function cargar() {
-      const { data: prod } = await supabase.from('productos').select('*').eq('id', id).single();
+      const prod = await obtenerProducto(id).catch(() => null);
       if (!activo) return;
       setProducto(prod || null);
 
       if (prod) {
-        const { data: rese } = await supabase
-          .from('resenas')
-          .select('*')
-          .eq('producto_id', prod.id)
-          .order('fecha', { ascending: false });
-        if (activo) setResenas(rese || []);
+        let rese = [];
+        try {
+          const resultado = await supabase
+            .from('resenas')
+            .select('*')
+            .eq('producto_id', prod.id)
+            .order('fecha', { ascending: false });
+          rese = resultado.data || [];
+        } catch {
+          rese = [];
+        }
+        if (activo) setResenas(rese);
 
-        const { data: relac } = await supabase
-          .from('productos')
-          .select('*')
-          .eq('categoria', prod.categoria)
-          .neq('id', prod.id)
-          .limit(3);
+        const relac = await listarProductos({ categoria: prod.categoria, excluir: prod.id, limit: 3 }).catch(() => []);
         if (activo) setRelacionados(relac || []);
       }
       if (activo) setCargando(false);

@@ -1,20 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { listarBlogs } from '../api/blogsApi';
 
 export default function Blogs() {
   const [blogs, setBlogs] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from('blogs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (!error) setBlogs(data || []);
-        setCargando(false);
-      });
+    listarBlogs()
+      .then((data) => setBlogs(data || []))
+      .catch(() => setBlogs([]))
+      .finally(() => setCargando(false));
   }, []);
 
   return (

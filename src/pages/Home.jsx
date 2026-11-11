@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { listarProductos } from '../api/productosApi';
 import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/ProductCard';
 
@@ -9,12 +9,9 @@ export default function Home() {
   const [destacados, setDestacados] = useState([]);
 
   useEffect(() => {
-    supabase
-      .from('productos')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(3)
-      .then(({ data }) => setDestacados(data || []));
+    listarProductos({ orden: 'creado_asc', limit: 3 })
+      .then((data) => setDestacados(data || []))
+      .catch(() => setDestacados([]));
   }, []);
 
   return (
