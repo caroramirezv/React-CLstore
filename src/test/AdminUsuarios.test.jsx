@@ -7,24 +7,22 @@ vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }));
 vi.mock('bootstrap', () => ({ Modal: { getInstance: () => null } }));
 vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));
 
-// Listar, actualizar y borrar perfiles; crear usuario va por la función "create-user".
+// ms-usuarios: listar, crear, actualizar y eliminar (el token lo agrega la capa api, no la pantalla).
 const mocks = vi.hoisted(() => ({
-  lista: { data: [] },
-  update: vi.fn(),
+  lista: [],
+  crear: vi.fn(),
+  actualizar: vi.fn(),
   eliminar: vi.fn(),
-  invoke: vi.fn(),
 }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({ order: () => Promise.resolve(mocks.lista) }),
-      update: (payload) => ({ eq: (col, valor) => mocks.update(payload, col, valor) }),
-      delete: () => ({ eq: (col, valor) => mocks.eliminar(col, valor) }),
-    }),
-    auth: { getSession: () => Promise.resolve({ data: { session: { access_token: 'tok' } } }) },
-    functions: { invoke: (...args) => mocks.invoke(...args) },
-  },
+vi.mock('../api/usuariosApi', () => ({
+  listarUsuarios: () => (mocks.lista instanceof Error ? Promise.reject(mocks.lista) : Promise.resolve(mocks.lista)),
+  crearUsuario: (usuario) => mocks.crear(usuario),
+  actualizarUsuario: (id, usuario) => mocks.actualizar(id, usuario),
+  eliminarUsuario: (id) => mocks.eliminar(id),
 }));
+
+// Error de microservicio (ApiError) con el código HTTP, como lo lanza src/api/http.js
+const errorApi = (mensaje, status) => Object.assign(new Error(mensaje), { status });
 
 import { useAuth } from '../context/AuthContext';
 
@@ -45,7 +43,7 @@ const fila = (nombre) => screen.getByText(nombre).closest('tr');
 const toast = (titulo) => expect.objectContaining({ title: titulo });
 
 async function renderUsuarios({ lista = usuarios, usuarioActivo = { id: 'u2' } } = {}) {
-  mocks.lista = { data: lista };
+  mocks.lista = lista;
   useAuth.mockReturnValue({ usuario: usuarioActivo });
   await act(async () => {
     render(<AdminUsuarios />);
@@ -68,9 +66,9 @@ describe('AdminUsuarios', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Swal.fire.mockResolvedValue({ isConfirmed: true });
-    mocks.update.mockResolvedValue({ error: null });
-    mocks.eliminar.mockResolvedValue({ error: null });
-    mocks.invoke.mockResolvedValue({ error: null });
+    mocks.crear.mockResolvedValue({});
+    mocks.actualizar.mockResolvedValue({});
+    mocks.eliminar.mockResolvedValue(null);
   });
 
   describe('listado', () => {
@@ -91,18 +89,15 @@ describe('AdminUsuarios', () => {
   });
 
   describe('crear', () => {
-    it('invoca "create-user" con los datos y el token de la sesión', async () => {
+    it('crea el usuario en ms-usuarios con los datos del formulario', async () => {
       const user = await renderUsuarios();
       await user.click(screen.getByRole('button', { name: /Nuevo Usuario/ }));
       llenarUsuarioNuevo();
       enviar();
       await waitFor(() =>
-        expect(mocks.invoke).toHaveBeenCalledWith('create-user', {
-          body: {
-            run: RUN_VALIDO, tipo: 'Cliente', nombre: 'Eva', apellidos: 'Rojas', correo: 'eva@gmail.com',
-            fechaNacimiento: '', password: 'abc123', region: 'Arica y Parinacota', comuna: 'Arica', direccion: 'Calle 1',
-          },
-          headers: { Authorization: 'Bearer tok' },
+        expect(mocks.crear).toHaveBeenCalledWith({
+          run: RUN_VALIDO, tipo: 'Cliente', nombre: 'Eva', apellidos: 'Rojas', correo: 'eva@gmail.com',
+          fecha_nacimiento: null, password: 'abc123', region: 'Arica y Parinacota', comuna: 'Arica', direccion: 'Calle 1',
         })
       );
       expect(Swal.fire).toHaveBeenCalledWith(toast('Usuario creado'));
@@ -115,7 +110,7 @@ describe('AdminUsuarios', () => {
       escribir('RUN *', '123456789');
       enviar();
       expect(Swal.fire).toHaveBeenCalledWith('RUN inválido', expect.any(String), 'error');
-      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(mocks.crear).not.toHaveBeenCalled();
     });
 
     it('rechaza si faltan campos obligatorios', async () => {
@@ -125,7 +120,7 @@ describe('AdminUsuarios', () => {
       escribir('Nombre *', '');
       enviar();
       expect(Swal.fire).toHaveBeenCalledWith('Datos incompletos', expect.any(String), 'error');
-      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(mocks.crear).not.toHaveBeenCalled();
     });
 
     it('rechaza una contraseña de menos de 6 caracteres', async () => {
@@ -135,12 +130,11 @@ describe('AdminUsuarios', () => {
       escribir('Contraseña *', 'abc');
       enviar();
       expect(Swal.fire).toHaveBeenCalledWith('Contraseña inválida', expect.any(String), 'error');
-      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(mocks.crear).not.toHaveBeenCalled();
     });
 
-    it('si la función devuelve error lo muestra', async () => {
-      vi.spyOn(console, 'error').mockImplementation(() => {});
-      mocks.invoke.mockResolvedValue({ error: { message: 'el correo ya existe' } });
+    it('si ms-usuarios devuelve error (409) lo muestra', async () => {
+      mocks.crear.mockRejectedValue(errorApi('el correo ya existe', 409));
       const user = await renderUsuarios();
       await user.click(screen.getByRole('button', { name: /Nuevo Usuario/ }));
       llenarUsuarioNuevo();
@@ -150,40 +144,24 @@ describe('AdminUsuarios', () => {
       );
     });
 
-    it('registra en consola el detalle JSON que devuelve la función', async () => {
-      const consola = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const context = { clone: () => ({ json: () => Promise.resolve({ detalle: 'correo duplicado' }) }) };
-      mocks.invoke.mockResolvedValue({ error: { message: 'falló', context } });
+    it('un Vendedor que intenta crear un Administrador ve el 403 del servicio', async () => {
+      mocks.crear.mockRejectedValue(errorApi('Solo un Administrador puede crear, modificar o eliminar cuentas de Administrador.', 403));
       const user = await renderUsuarios();
       await user.click(screen.getByRole('button', { name: /Nuevo Usuario/ }));
       llenarUsuarioNuevo();
+      escribir('Tipo de Usuario *', 'Administrador');
       enviar();
       await waitFor(() =>
-        expect(Swal.fire).toHaveBeenCalledWith('No se pudo crear el usuario', 'falló', 'error')
+        expect(Swal.fire).toHaveBeenCalledWith(
+          'No se pudo crear el usuario',
+          expect.stringContaining('Solo un Administrador'),
+          'error'
+        )
       );
-      expect(consola).toHaveBeenCalledWith('Respuesta de Supabase:', { detalle: 'correo duplicado' });
-    });
-
-    it('si la respuesta de error no es JSON registra el texto plano', async () => {
-      const consola = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const context = {
-        clone: () => ({
-          json: () => Promise.reject(new Error('no es json')),
-          text: () => Promise.resolve('texto plano'),
-        }),
-      };
-      mocks.invoke.mockResolvedValue({ error: { message: 'falló', context } });
-      const user = await renderUsuarios();
-      await user.click(screen.getByRole('button', { name: /Nuevo Usuario/ }));
-      llenarUsuarioNuevo();
-      enviar();
-      await waitFor(() => expect(consola).toHaveBeenCalledWith('Respuesta de texto:', 'texto plano'));
-      expect(Swal.fire).toHaveBeenCalledWith('No se pudo crear el usuario', 'falló', 'error');
     });
 
     it('si el error no trae mensaje muestra \"Error desconocido\"', async () => {
-      vi.spyOn(console, 'error').mockImplementation(() => {});
-      mocks.invoke.mockResolvedValue({ error: {} });
+      mocks.crear.mockRejectedValue({});
       const user = await renderUsuarios();
       await user.click(screen.getByRole('button', { name: /Nuevo Usuario/ }));
       llenarUsuarioNuevo();
@@ -201,11 +179,8 @@ describe('AdminUsuarios', () => {
       escribir('Fecha Nacimiento (Opcional)', '1990-05-20');
       enviar();
       await waitFor(() =>
-        expect(mocks.invoke).toHaveBeenCalledWith(
-          'create-user',
-          expect.objectContaining({
-            body: expect.objectContaining({ tipo: 'Vendedor', fechaNacimiento: '1990-05-20' }),
-          })
+        expect(mocks.crear).toHaveBeenCalledWith(
+          expect.objectContaining({ tipo: 'Vendedor', fecha_nacimiento: '1990-05-20' })
         )
       );
     });
@@ -222,20 +197,19 @@ describe('AdminUsuarios', () => {
       expect(campo('Nombre *')).toHaveValue('Ana');
     });
 
-    it('actualiza el perfil por su id sin pedir contraseña', async () => {
+    it('actualiza el usuario por su id sin pedir contraseña', async () => {
       const user = await renderUsuarios();
       await user.click(within(fila('Ana Pérez')).getAllByRole('button')[0]);
       escribir('Nombre *', 'Anita');
       enviar();
       await waitFor(() =>
-        expect(mocks.update).toHaveBeenCalledWith(
-          expect.objectContaining({ nombre: 'Anita', apellidos: 'Pérez', tipo: 'Cliente', fecha_nacimiento: null }),
-          'id',
-          'u1'
+        expect(mocks.actualizar).toHaveBeenCalledWith(
+          'u1',
+          expect.objectContaining({ nombre: 'Anita', apellidos: 'Pérez', tipo: 'Cliente', fecha_nacimiento: null })
         )
       );
       expect(Swal.fire).toHaveBeenCalledWith(toast('Usuario actualizado'));
-      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(mocks.crear).not.toHaveBeenCalled();
     });
   });
 
@@ -250,7 +224,7 @@ describe('AdminUsuarios', () => {
     it('al confirmar borra a otro usuario', async () => {
       const user = await renderUsuarios({ usuarioActivo: { id: 'u2' } });
       await user.click(within(fila('Ana Pérez')).getAllByRole('button')[1]);
-      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('id', 'u1'));
+      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('u1'));
       expect(Swal.fire).toHaveBeenCalledWith(toast('Usuario eliminado'));
     });
 
@@ -262,8 +236,8 @@ describe('AdminUsuarios', () => {
       expect(mocks.eliminar).not.toHaveBeenCalled();
     });
 
-    it('si Supabase falla al borrar muestra el error', async () => {
-      mocks.eliminar.mockResolvedValue({ error: { message: 'sin permisos' } });
+    it('si ms-usuarios falla al borrar muestra el error', async () => {
+      mocks.eliminar.mockRejectedValue(errorApi('sin permisos', 403));
       const user = await renderUsuarios({ usuarioActivo: { id: 'u2' } });
       await user.click(within(fila('Ana Pérez')).getAllByRole('button')[1]);
       await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('Error', 'sin permisos', 'error'));
@@ -299,8 +273,8 @@ describe('AdminUsuarios', () => {
       expect(campo('Tipo de Usuario *')).toHaveValue('Vendedor');
     });
 
-    it('si Supabase falla al actualizar muestra el error', async () => {
-      mocks.update.mockResolvedValue({ error: { message: 'sin permiso' } });
+    it('si ms-usuarios falla al actualizar muestra el error', async () => {
+      mocks.actualizar.mockRejectedValue(errorApi('sin permiso', 403));
       const user = await renderUsuarios();
       await user.click(within(fila('Ana Pérez')).getAllByRole('button')[0]);
       enviar();

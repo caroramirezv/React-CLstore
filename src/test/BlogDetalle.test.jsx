@@ -2,14 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import BlogDetalle from '../pages/BlogDetalle';
 
-const mocks = vi.hoisted(() => ({ respuesta: { data: null } }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({ eq: () => ({ single: () => Promise.resolve(mocks.respuesta) }) }),
-    }),
-  },
-}));
+const mocks = vi.hoisted(() => ({ obtenerBlog: vi.fn() }));
+vi.mock('../api/blogsApi', () => ({ obtenerBlog: (...args) => mocks.obtenerBlog(...args) }));
 
 const blog = {
   id: 'guia-pc',
@@ -20,8 +14,10 @@ const blog = {
   fuente_url: 'https://ejemplo.cl/nota',
 };
 
+// data: el artículo, null (no existe) o un Error (404 / sin conexión)
 function renderDetalle(data) {
-  mocks.respuesta = { data };
+  if (data instanceof Error) mocks.obtenerBlog.mockRejectedValue(data);
+  else mocks.obtenerBlog.mockResolvedValue(data);
   render(
     <MemoryRouter initialEntries={['/blogs/guia-pc']}>
       <Routes>
@@ -73,6 +69,17 @@ describe('BlogDetalle', () => {
   it('el botón "Volver a Blogs" apunta a /blogs', async () => {
     renderDetalle(blog);
     expect(await screen.findByRole('link', { name: 'Volver a Blogs' })).toHaveAttribute('href', '/blogs');
+  });
+
+  it('pide el artículo a ms-blogs por su identificador', async () => {
+    renderDetalle(blog);
+    await screen.findByRole('heading', { name: 'Cómo armar un PC' });
+    expect(mocks.obtenerBlog).toHaveBeenCalledWith('guia-pc');
+  });
+
+  it('si ms-blogs responde 404 o no responde muestra "Artículo no encontrado."', async () => {
+    renderDetalle(new Error('No existe el blog'));
+    expect(await screen.findByText('Artículo no encontrado.')).toBeInTheDocument();
   });
 
   it('si el artículo no existe muestra "Artículo no encontrado."', async () => {

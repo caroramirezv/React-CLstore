@@ -5,9 +5,7 @@ import Contacto from '../pages/Contacto';
 
 vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }));
 const mocks = vi.hoisted(() => ({ insert: vi.fn() }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: { from: () => ({ insert: mocks.insert }) },
-}));
+vi.mock('../api/contactoApi', () => ({ enviarContacto: (mensaje) => mocks.insert(mensaje) }));
 
 async function llenarFormulario(user, { nombre = 'Juan Pérez', email = 'juan@duoc.cl', mensaje = 'Hola, tengo una duda' } = {}) {
   await user.type(screen.getByPlaceholderText('Ej: Juan Pérez'), nombre);
@@ -18,7 +16,7 @@ async function llenarFormulario(user, { nombre = 'Juan Pérez', email = 'juan@du
 describe('Contacto', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.insert.mockResolvedValue({ error: null });
+    mocks.insert.mockResolvedValue({ id: 1 });
   });
 
   it('muestra el formulario y las tres tiendas', () => {
@@ -59,12 +57,12 @@ describe('Contacto', () => {
     await llenarFormulario(user);
     await user.click(screen.getByRole('button', { name: 'Enviar Mensaje' }));
     expect(screen.getByRole('button', { name: 'Enviando...' })).toBeDisabled();
-    terminar({ error: null });
+    terminar({ id: 1 });
     expect(await screen.findByRole('button', { name: 'Enviar Mensaje' })).toBeEnabled();
   });
 
-  it('si Supabase devuelve error lo muestra y conserva lo escrito', async () => {
-    mocks.insert.mockResolvedValue({ error: { message: 'falló la red' } });
+  it('si ms-contacto falla lo muestra y conserva lo escrito', async () => {
+    mocks.insert.mockRejectedValue(new Error('falló la red'));
     const user = userEvent.setup();
     render(<Contacto />);
     await llenarFormulario(user);

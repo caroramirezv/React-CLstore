@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Swal from 'sweetalert2';
-import { supabase } from '../lib/supabaseClient';
+import { enviarContacto } from '../api/contactoApi';
 
 const inputStyle = { backgroundColor: '#fdf6e2', color: '#212529' };
 
@@ -20,11 +20,16 @@ export default function Contacto() {
     }
 
     setEnviando(true);
-    const { error } = await supabase.from('contactos').insert({
-      nombre: form.nombre.trim(),
-      email: form.email.trim(),
-      mensaje: form.mensaje.trim(),
-    });
+    let error = null;
+    try {
+      await enviarContacto({
+        nombre: form.nombre.trim(),
+        email: form.email.trim(),
+        mensaje: form.mensaje.trim(),
+      });
+    } catch (err) {
+      error = err;
+    }
     setEnviando(false);
 
     if (error) {

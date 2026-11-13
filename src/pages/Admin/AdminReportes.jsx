@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { supabase } from '../../lib/supabaseClient'; // órdenes, perfiles y artículos (aún en Supabase)
 import { listarProductos } from '../../api/productosApi';
 import { listarBlogs } from '../../api/blogsApi';
+import { listarOrdenes, listarItemsOrdenes } from '../../api/ordenesApi';
+import { listarUsuarios } from '../../api/usuariosApi';
 import { aResultado } from '../../api/http';
 import { formatoCLP } from '../../lib/validaciones';
 
@@ -25,24 +26,11 @@ async function cargarReportes() {
   setErrorCarga('');
   try {
     const consultas = [
-      ['órdenes', supabase
-        .from('ordenes')
-        
-.select('id, total, estado, creado_en, nombre_comprador, apellidos_comprador, comuna')
-
-        .order('creado_en', { ascending: false })],
-
+      ['órdenes', aResultado(listarOrdenes())],
       ['productos', aResultado(listarProductos())],
-
-      ['perfiles', supabase
-        .from('perfiles')
-        .select('id, tipo, created_at')],
-
+      ['perfiles', aResultado(listarUsuarios())],
       ['blogs', aResultado(listarBlogs())],
-
-      ['artículos de órdenes', supabase
-        .from('orden_items')
-        .select('orden_id, nombre_producto, cantidad, precio_unitario')],
+      ['artículos de órdenes', aResultado(listarItemsOrdenes())],
     ];
     const resultados = await Promise.all(
       consultas.map(async ([nombre, consulta]) => ({
@@ -69,7 +57,7 @@ async function cargarReportes() {
     resultados.forEach((resultado) => {
       if (resultado.error) {
         errores.push(
-          `${resultado.nombre}: ${resultado.error.message}`
+          `${resultado.nombre}: ${resultado.error.message || 'error desconocido'}`
         );
         console.error(
         `Error consultando ${resultado.nombre}:`,
@@ -85,7 +73,7 @@ async function cargarReportes() {
       setErrorCarga(errores.join(' · '));
     }
     console.log(
-      'Órdenes recuperadas desde Supabase:',
+      'Órdenes recuperadas desde ms-ordenes:',
       nuevosDatos.ordenes.length
     );
   } catch (error) {

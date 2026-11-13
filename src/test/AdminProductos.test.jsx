@@ -7,36 +7,25 @@ vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }));
 vi.mock('bootstrap', () => ({ Modal: { getInstance: () => null } }));
 
 const mocks = vi.hoisted(() => ({
-  lista: { data: [] },
-  categorias: { data: [] },
+  lista: [],
+  categorias: [],
   cargarCategorias: vi.fn(),
-  existente: { data: null },
   insert: vi.fn(),
   update: vi.fn(),
   eliminar: vi.fn(),
   upload: vi.fn(),
 }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    storage: {
-      from: () => ({
-        upload: (ruta, archivo, opciones) => mocks.upload(ruta, archivo, opciones),
-        getPublicUrl: (ruta) => ({ data: { publicUrl: `https://cdn.test/${ruta}` } }),
-      }),
-    },
-    from: (tabla) => ({
-      select: (columnas) => {
-        if (tabla === 'categorias') return { order: () => mocks.cargarCategorias() };
-        return columnas === '*'
-          ? { order: () => Promise.resolve(mocks.lista) }
-          : { eq: () => ({ maybeSingle: () => Promise.resolve(mocks.existente) }) };
-      },
-      insert: (fila) => mocks.insert(fila),
-      update: (payload) => ({ eq: (col, valor) => mocks.update(payload, col, valor) }),
-      delete: () => ({ eq: (col, valor) => mocks.eliminar(col, valor) }),
-    }),
-  },
+vi.mock('../api/productosApi', () => ({
+  listarProductos: () => Promise.resolve(mocks.lista),
+  crearProducto: (producto) => mocks.insert(producto),
+  actualizarProducto: (id, producto) => mocks.update(id, producto),
+  eliminarProducto: (id) => mocks.eliminar(id),
+  subirImagenProducto: (archivo) => mocks.upload(archivo),
 }));
+vi.mock('../api/categoriasApi', () => ({ listarCategorias: () => mocks.cargarCategorias() }));
+
+// Error de microservicio (ApiError) con el código HTTP, como lo lanza src/api/http.js
+const errorApi = (mensaje, status) => Object.assign(new Error(mensaje), { status });
 
 const productos = [
   { id: 'MOUSE1', nombre: 'Mouse Logitech', precio: 10000, stock: 2, stock_critico: 5, categoria: 'perifericos',
@@ -62,7 +51,7 @@ const opcionesCategoria = () =>
   Array.from(campo('Categoría *').querySelectorAll('option')).map((o) => o.textContent);
 
 async function renderProductos(lista = productos) {
-  mocks.lista = { data: lista };
+  mocks.lista = lista;
   await act(async () => {
     render(<AdminProductos />);
   });
@@ -81,13 +70,12 @@ describe('AdminProductos', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Swal.fire.mockResolvedValue({ isConfirmed: true });
-    mocks.categorias = { data: categoriasTabla };
+    mocks.categorias = categoriasTabla;
     mocks.cargarCategorias.mockImplementation(() => Promise.resolve(mocks.categorias));
-    mocks.existente = { data: null };
-    mocks.insert.mockResolvedValue({ error: null });
-    mocks.update.mockResolvedValue({ error: null });
-    mocks.eliminar.mockResolvedValue({ error: null });
-    mocks.upload.mockResolvedValue({ error: null });
+    mocks.insert.mockResolvedValue({});
+    mocks.update.mockResolvedValue({});
+    mocks.eliminar.mockResolvedValue(null);
+    mocks.upload.mockResolvedValue('https://cdn.test/productos/foto-subida.png');
     URL.createObjectURL = vi.fn(() => 'blob:vista-previa');
   });
 
@@ -115,7 +103,7 @@ describe('AdminProductos', () => {
   });
 
   describe('categorías del formulario', () => {
-    it('el selector lista las categorías de la tabla categorias', async () => {
+    it('el selector lista las categorías que devuelve ms-categoria', async () => {
       await renderProductos();
       expect(opcionesCategoria()).toEqual([
         'Seleccione Categoría',
@@ -126,8 +114,8 @@ describe('AdminProductos', () => {
       ]);
     });
 
-    it('sin categorías en la tabla solo queda la opción inicial', async () => {
-      mocks.categorias = { data: null };
+    it('sin categorías solo queda la opción inicial', async () => {
+      mocks.categorias = null;
       await renderProductos();
       expect(opcionesCategoria()).toEqual(['Seleccione Categoría']);
     });
@@ -151,7 +139,7 @@ describe('AdminProductos', () => {
 
     it('muestra una categoría creada después de cargar la página', async () => {
       const user = await renderProductos();
-      mocks.categorias = { data: [...categoriasTabla, { valor: 'audio', etiqueta: 'Audio' }] };
+      mocks.categorias = [...categoriasTabla, { valor: 'audio', etiqueta: 'Audio' }];
       await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
       await waitFor(() => expect(opcionesCategoria()).toContain('Audio'));
     });
@@ -183,20 +171,19 @@ describe('AdminProductos', () => {
       await waitFor(() =>
         expect(mocks.insert).toHaveBeenCalledWith({
           id: 'TEC1', nombre: 'Teclado', descripcion: '', precio: 20000, stock: 5, stock_critico: null,
-          categoria: 'perifericos', imagen: '/img/Logo.png', busqueda: 'teclado', descuento_porcentaje: null,
+          categoria: 'perifericos', imagen: '/img/Logo.png', descuento_porcentaje: null, // "busqueda" la calcula ms-productos
         })
       );
       expect(Swal.fire).toHaveBeenCalledWith(toast('Producto creado'));
     });
 
-    it('rechaza un código que ya existe', async () => {
-      mocks.existente = { data: { id: 'TEC1' } };
+    it('rechaza un código que ya existe (ms-productos responde 409)', async () => {
+      mocks.insert.mockRejectedValue(errorApi('Ya existe un producto con ese código.', 409));
       const user = await renderProductos();
       await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
       llenarProductoNuevo();
       enviar();
       await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('Código repetido', expect.any(String), 'error'));
-      expect(mocks.insert).not.toHaveBeenCalled();
     });
 
     it('rechaza un código de menos de 3 caracteres', async () => {
@@ -229,8 +216,8 @@ describe('AdminProductos', () => {
       expect(mocks.insert).not.toHaveBeenCalled();
     });
 
-    it('si Supabase falla al insertar muestra el error', async () => {
-      mocks.insert.mockResolvedValue({ error: { message: 'falló' } });
+    it('si ms-productos falla al crear muestra el error', async () => {
+      mocks.insert.mockRejectedValue(errorApi('falló', 500));
       const user = await renderProductos();
       await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
       llenarProductoNuevo();
@@ -263,7 +250,7 @@ describe('AdminProductos', () => {
       expect(URL.createObjectURL).not.toHaveBeenCalled();
     });
 
-    it('sube la imagen elegida y guarda su URL pública', async () => {
+    it('sube la imagen elegida a ms-productos y guarda la URL que devuelve', async () => {
       const user = await renderProductos();
       await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
       llenarProductoNuevo();
@@ -273,28 +260,14 @@ describe('AdminProductos', () => {
       expect(screen.getByText('Teclado.PNG')).toBeInTheDocument();
       enviar();
       await waitFor(() => expect(mocks.insert).toHaveBeenCalled());
-      const [ruta, archivo, opciones] = mocks.upload.mock.calls[0];
-      expect(ruta).toMatch(/^TEC1\/\d+\.png$/);
-      expect(archivo).toBe(foto);
-      expect(opciones).toEqual({ cacheControl: '3600', upsert: false, contentType: 'image/png' });
+      expect(mocks.upload).toHaveBeenCalledWith(foto);
       expect(mocks.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'TEC1', imagen: `https://cdn.test/${ruta}` })
+        expect.objectContaining({ id: 'TEC1', imagen: 'https://cdn.test/productos/foto-subida.png' })
       );
     });
 
-    it('usa la extensión jpg si el nombre del archivo no tiene una válida', async () => {
-      const user = await renderProductos();
-      await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
-      llenarProductoNuevo();
-      const foto = new File(['img'], 'foto.!!!', { type: 'image/jpeg' });
-      fireEvent.change(campo('Foto del producto (Opcional)'), { target: { files: [foto] } });
-      enviar();
-      await waitFor(() => expect(mocks.upload).toHaveBeenCalled());
-      expect(mocks.upload.mock.calls[0][0]).toMatch(/^TEC1\/\d+\.jpg$/);
-    });
-
     it('si falla la subida de la imagen avisa y no guarda el producto', async () => {
-      mocks.upload.mockResolvedValue({ error: { message: 'bucket no existe' } });
+      mocks.upload.mockRejectedValue(errorApi('bucket no existe', 500));
       const user = await renderProductos();
       await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
       llenarProductoNuevo();
@@ -339,9 +312,8 @@ describe('AdminProductos', () => {
       enviar();
       await waitFor(() =>
         expect(mocks.update).toHaveBeenCalledWith(
-          expect.objectContaining({ nombre: 'Mouse Pro', precio: 10000, stock: 2, descuento_porcentaje: 15 }),
-          'id',
-          'MOUSE1'
+          'MOUSE1',
+          expect.objectContaining({ nombre: 'Mouse Pro', precio: 10000, stock: 2, descuento_porcentaje: 15 })
         )
       );
       expect(Swal.fire).toHaveBeenCalledWith(toast('Producto actualizado'));
@@ -354,11 +326,7 @@ describe('AdminProductos', () => {
       escribir('Categoría *', 'gaming_gear');
       enviar();
       await waitFor(() =>
-        expect(mocks.update).toHaveBeenCalledWith(
-          expect.objectContaining({ categoria: 'gaming_gear' }),
-          'id',
-          'MOUSE1'
-        )
+        expect(mocks.update).toHaveBeenCalledWith('MOUSE1', expect.objectContaining({ categoria: 'gaming_gear' }))
       );
     });
   });
@@ -367,7 +335,7 @@ describe('AdminProductos', () => {
     it('al confirmar borra el producto', async () => {
       const user = await renderProductos();
       await user.click(within(fila('RTX 4070')).getAllByRole('button')[1]);
-      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('id', 'RTX1'));
+      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('RTX1'));
       expect(Swal.fire).toHaveBeenCalledWith(toast('Producto eliminado'));
     });
 
@@ -379,8 +347,8 @@ describe('AdminProductos', () => {
       expect(mocks.eliminar).not.toHaveBeenCalled();
     });
 
-    it('si Supabase falla al borrar muestra el error', async () => {
-      mocks.eliminar.mockResolvedValue({ error: { message: 'tiene órdenes asociadas' } });
+    it('si ms-productos falla al borrar muestra el error', async () => {
+      mocks.eliminar.mockRejectedValue(errorApi('tiene órdenes asociadas', 409));
       const user = await renderProductos();
       await user.click(within(fila('RTX 4070')).getAllByRole('button')[1]);
       await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('Error', 'tiene órdenes asociadas', 'error'));
@@ -417,23 +385,13 @@ describe('AdminProductos', () => {
       expect(campo('Categoría *')).toHaveValue('');
     });
 
-    it('si Supabase falla al actualizar muestra el error', async () => {
-      mocks.update.mockResolvedValue({ error: { message: 'falló al actualizar' } });
+    it('si ms-productos falla al actualizar muestra el error', async () => {
+      mocks.update.mockRejectedValue(errorApi('falló al actualizar', 500));
       const user = await renderProductos();
       await editar(user, fila('Mouse Logitech'));
       enviar();
       await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('Error', 'falló al actualizar', 'error'));
     });
 
-    it('usa la extensión jpg si el nombre del archivo termina en punto', async () => {
-      const user = await renderProductos();
-      await user.click(screen.getByRole('button', { name: /Nuevo Producto/ }));
-      llenarProductoNuevo();
-      const foto = new File(['img'], 'foto.', { type: 'image/jpeg' });
-      fireEvent.change(campo('Foto del producto (Opcional)'), { target: { files: [foto] } });
-      enviar();
-      await waitFor(() => expect(mocks.upload).toHaveBeenCalled());
-      expect(mocks.upload.mock.calls[0][0]).toMatch(/^TEC1\/\d+\.jpg$/);
-    });
   });
 });

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { listarOrdenes, obtenerOrden } from '../../api/ordenesApi';
 import { formatoCLP } from '../../lib/validaciones';
 
 export default function AdminOrdenes() {
@@ -11,15 +11,10 @@ export default function AdminOrdenes() {
 
   useEffect(() => {
     async function cargarOrdenes() {
-      const { data, error } = await supabase
-        .from('ordenes')
-        .select('*')
-        .order('creado_en', { ascending: false });
-
-      if (error) {
+      try {
+        setOrdenes((await listarOrdenes()) || []);
+      } catch (error) {
         console.error('Error al cargar órdenes:', error.message);
-      } else {
-        setOrdenes(data || []);
       }
 
       setCargando(false);
@@ -39,18 +34,14 @@ export default function AdminOrdenes() {
     if (!itemsPorOrden[ordenId]) {
       setCargandoItems(ordenId);
 
-      const { data, error } = await supabase
-        .from('orden_items')
-        .select('*')
-        .eq('orden_id', ordenId);
-
-      if (error) {
-        console.error('Error al cargar los productos de la orden:', error.message);
-      } else {
+      try {
+        const detalle = await obtenerOrden(ordenId);
         setItemsPorOrden((prev) => ({
           ...prev,
-          [ordenId]: data || [],
+          [ordenId]: detalle.items || [],
         }));
+      } catch (error) {
+        console.error('Error al cargar los productos de la orden:', error.message);
       }
 
       setCargandoItems(null);

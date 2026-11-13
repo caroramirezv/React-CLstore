@@ -6,14 +6,16 @@ import Checkout from '../pages/Checkout';
 vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
 const navigate = vi.hoisted(() => vi.fn());
-const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
+const mocks = vi.hoisted(() => ({ crearOrden: vi.fn() }));
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal()),
   useNavigate: () => navigate,
 }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: { rpc: (...args) => mocks.rpc(...args) },
-}));
+vi.mock('../api/ordenesApi', () => ({ crearOrden: (...args) => mocks.crearOrden(...args) }));
+
+// Compra rechazada por ms-ordenes (409): el motivo viaja en message y el id de la orden fallida en datos.orden_id
+const rechazo = (mensaje, ordenId = null) =>
+  Object.assign(new Error(mensaje), { status: 409, datos: ordenId === null ? null : { orden_id: ordenId } });
 
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -58,7 +60,7 @@ async function completar(user) {
 describe('Checkout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.rpc.mockResolvedValue({ data: { orden_id: 'ord-1', total: 20000 }, error: null });
+    mocks.crearOrden.mockResolvedValue({ orden_id: 'ord-1', total: 20000, estado: 'exitosa' });
   });
 
   describe('carrito vacío', () => {
@@ -114,10 +116,10 @@ describe('Checkout', () => {
   });
 
   describe('pago', () => {
-    it('no llama a crear_orden si faltan datos obligatorios', () => {
+    it('no llama a ms-ordenes si faltan datos obligatorios', () => {
       renderCheckout();
       fireEvent.submit(screen.getByRole('button', { name: 'Pagar $20.000' }).form);
-      expect(mocks.rpc).not.toHaveBeenCalled();
+      expect(mocks.crearOrden).not.toHaveBeenCalled();
     });
 
     it('con datos válidos crea la orden, vacía el carrito y abre el resumen', async () => {
@@ -135,75 +137,57 @@ describe('Checkout', () => {
           }),
         })
       ));
-      expect(mocks.rpc).toHaveBeenCalledWith('crear_orden', expect.objectContaining({
-        p_usuario_id: 'u1',
-        p_nombre: 'Ana',
-        p_correo: 'ana@gmail.com',
-        p_comuna: 'Arica',
-        p_items: [{ producto_id: 1, cantidad: 2 }],
+      // Solo viajan comprador y cantidades: el precio lo calcula ms-ordenes y el usuario lo identifica el token.
+      expect(mocks.crearOrden).toHaveBeenCalledWith(expect.objectContaining({
+        nombre: 'Ana',
+        correo: 'ana@gmail.com',
+        comuna: 'Arica',
+        items: [{ producto_id: 1, cantidad: 2 }],
       }));
+      expect(mocks.crearOrden.mock.calls[0][0]).not.toHaveProperty('total');
       expect(vaciarCarrito).toHaveBeenCalled();
     });
 
-    it('si crear_orden falla registra la orden fallida y no vacía el carrito', async () => {
-      mocks.rpc.mockImplementation(async (nombre) => {
-        if (nombre === 'crear_orden') return { data: null, error: { message: 'Sin stock' } };
-        return { data: 'fall-9', error: null };
-      });
+    it('si ms-ordenes rechaza la compra abre el resumen de fallo con la orden fallida y no vacía el carrito', async () => {
+      mocks.crearOrden.mockRejectedValue(rechazo('Sin stock', 'fall-9'));
       const { user, vaciarCarrito } = renderCheckout();
       await completar(user);
       await user.click(screen.getByRole('button', { name: 'Pagar $20.000' }));
       await waitFor(() => expect(navigate).toHaveBeenCalledWith('/resumen-compra', {
         state: { exito: false, motivo: 'Sin stock', ordenId: 'fall-9' },
       }));
-      expect(mocks.rpc).toHaveBeenCalledWith('registrar_orden_fallida', expect.objectContaining({
-        p_total: 20000,
-        p_correo: 'ana@gmail.com',
-      }));
       expect(vaciarCarrito).not.toHaveBeenCalled();
     });
 
     it('muestra "Procesando pago..." mientras la orden no responde', async () => {
       let resolver;
-      mocks.rpc.mockImplementation(() => new Promise((resolve) => { resolver = resolve; }));
+      mocks.crearOrden.mockImplementation(() => new Promise((resolve) => { resolver = resolve; }));
       const { user } = renderCheckout();
       await completar(user);
       await user.click(screen.getByRole('button', { name: 'Pagar $20.000' }));
       expect(screen.getByRole('button', { name: 'Procesando pago...' })).toBeDisabled();
-      resolver({ data: { orden_id: 'ord-1', total: 20000 }, error: null });
+      resolver({ orden_id: 'ord-1', total: 20000, estado: 'exitosa' });
       await waitFor(() => expect(navigate).toHaveBeenCalled());
     });
 
-    it('si tampoco se puede registrar la orden fallida lo deja en consola y avisa igual', async () => {
-      const consola = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mocks.rpc.mockImplementation(async (nombre) => {
-        if (nombre === 'crear_orden') return { data: null, error: { message: 'Sin stock' } };
-        return { data: null, error: { message: 'rpc caída' } };
-      });
-      const { user } = renderCheckout();
+    it('si ms-ordenes no responde abre el resumen de fallo sin id de orden', async () => {
+      mocks.crearOrden.mockRejectedValue(Object.assign(new Error('No se pudo conectar con el servidor.'), { status: 0 }));
+      const { user, vaciarCarrito } = renderCheckout();
       await completar(user);
       await user.click(screen.getByRole('button', { name: 'Pagar $20.000' }));
       await waitFor(() => expect(navigate).toHaveBeenCalledWith('/resumen-compra', {
-        state: { exito: false, motivo: 'Sin stock', ordenId: null },
+        state: { exito: false, motivo: 'No se pudo conectar con el servidor.', ordenId: null },
       }));
-      expect(consola).toHaveBeenCalledWith('Error guardando la orden fallida:', { message: 'rpc caída' });
+      expect(vaciarCarrito).not.toHaveBeenCalled();
     });
 
-    it('sin teléfono ni total envía null y 0 al registrar la orden fallida', async () => {
-      mocks.rpc.mockImplementation(async (nombre) => {
-        if (nombre === 'crear_orden') return { data: null, error: { message: 'Sin stock' } };
-        return { data: 'fall-1', error: null };
-      });
-      const { user } = renderCheckout({ total: 0 });
+    it('sin teléfono envía null', async () => {
+      const { user } = renderCheckout();
       await completar(user);
       fireEvent.change(campo('Teléfono (Opcional)'), { target: { value: '' } });
-      await user.click(screen.getByRole('button', { name: 'Pagar $0' }));
+      await user.click(screen.getByRole('button', { name: 'Pagar $20.000' }));
       await waitFor(() => expect(navigate).toHaveBeenCalled());
-      expect(mocks.rpc).toHaveBeenCalledWith('crear_orden', expect.objectContaining({ p_telefono: null }));
-      expect(mocks.rpc).toHaveBeenCalledWith(
-        'registrar_orden_fallida',
-        expect.objectContaining({ p_telefono: null, p_total: 0 })
-      );
+      expect(mocks.crearOrden).toHaveBeenCalledWith(expect.objectContaining({ telefono: null }));
     });
 
     it('permite cambiar el método de pago', async () => {

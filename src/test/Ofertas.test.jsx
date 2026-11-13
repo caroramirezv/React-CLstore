@@ -4,14 +4,8 @@ import { MemoryRouter } from 'react-router-dom';
 import Ofertas from '../pages/Ofertas';
 
 vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
-const mocks = vi.hoisted(() => ({ respuesta: { data: [], error: null } }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({ not: () => ({ order: () => Promise.resolve(mocks.respuesta) }) }),
-    }),
-  },
-}));
+const mocks = vi.hoisted(() => ({ listarProductos: vi.fn() }));
+vi.mock('../api/productosApi', () => ({ listarProductos: (...args) => mocks.listarProductos(...args) }));
 
 import { useCart } from '../context/CartContext';
 
@@ -20,10 +14,12 @@ const ofertas = [
   { id: 2, nombre: 'RTX 4070', precio: 500000, imagen: 'rtx.jpg', descuento_porcentaje: 10 },
 ];
 
-function renderOfertas(respuesta = { data: ofertas, error: null }) {
+// resultado: lista de productos, null (sin datos) o un Error (el microservicio falla)
+function renderOfertas(resultado = ofertas) {
   const agregarProducto = vi.fn();
   useCart.mockReturnValue({ agregarProducto });
-  mocks.respuesta = respuesta;
+  if (resultado instanceof Error) mocks.listarProductos.mockRejectedValue(resultado);
+  else mocks.listarProductos.mockResolvedValue(resultado);
   render(
     <MemoryRouter>
       <Ofertas />
@@ -49,6 +45,12 @@ describe('Ofertas', () => {
     expect(screen.getByText('$8.500')).toBeInTheDocument(); // 10.000 con 15% dto
   });
 
+  it('pide a ms-productos solo las ofertas, de mayor a menor descuento', async () => {
+    renderOfertas();
+    await screen.findByRole('heading', { name: 'Mouse Logitech' });
+    expect(mocks.listarProductos).toHaveBeenCalledWith({ oferta: true, orden: 'descuento_desc' });
+  });
+
   it('"Agregar al Carrito" llama agregarProducto con el producto', async () => {
     const user = userEvent.setup();
     const { agregarProducto } = renderOfertas();
@@ -58,17 +60,17 @@ describe('Ofertas', () => {
   });
 
   it('sin ofertas muestra el mensaje de que no hay ofertas activas', async () => {
-    renderOfertas({ data: [], error: null });
+    renderOfertas([]);
     expect(await screen.findByText(/No hay ofertas activas/)).toBeInTheDocument();
   });
 
-  it('si Supabase devuelve error muestra el mensaje de sin ofertas', async () => {
-    renderOfertas({ data: null, error: { message: 'falló' } });
+  it('si ms-productos falla muestra el mensaje de sin ofertas', async () => {
+    renderOfertas(new Error('falló'));
     expect(await screen.findByText(/No hay ofertas activas/)).toBeInTheDocument();
   });
 
-  it('si la respuesta no trae datos ni error muestra el mensaje de sin ofertas', async () => {
-    renderOfertas({ data: null, error: null });
+  it('si la respuesta no trae datos muestra el mensaje de sin ofertas', async () => {
+    renderOfertas(null);
     expect(await screen.findByText(/No hay ofertas activas/)).toBeInTheDocument();
   });
 });

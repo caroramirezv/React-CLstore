@@ -2,20 +2,18 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Blogs from '../pages/Blogs';
 
-const mocks = vi.hoisted(() => ({ respuesta: { data: [], error: null } }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: () => ({ select: () => ({ order: () => Promise.resolve(mocks.respuesta) }) }),
-  },
-}));
+const mocks = vi.hoisted(() => ({ listarBlogs: vi.fn() }));
+vi.mock('../api/blogsApi', () => ({ listarBlogs: (...args) => mocks.listarBlogs(...args) }));
 
 const articulos = [
   { id: 'guia-pc', titulo: 'Cómo armar un PC', resumen: 'Una guía corta para partir.', imagen: 'pc.jpg' },
   { id: 'ofertas', titulo: 'Ofertas de octubre', resumen: 'Lo que conviene mirar esta semana.', imagen: 'ofertas.jpg' },
 ];
 
-function renderBlogs(respuesta = { data: articulos, error: null }) {
-  mocks.respuesta = respuesta;
+// resultado: lista de artículos, null (sin datos) o un Error (el microservicio falla)
+function renderBlogs(resultado = articulos) {
+  if (resultado instanceof Error) mocks.listarBlogs.mockRejectedValue(resultado);
+  else mocks.listarBlogs.mockResolvedValue(resultado);
   render(
     <MemoryRouter>
       <Blogs />
@@ -47,18 +45,18 @@ describe('Blogs', () => {
   });
 
   it('sin artículos muestra el mensaje de "pronto subiremos"', async () => {
-    renderBlogs({ data: [], error: null });
+    renderBlogs([]);
     expect(await screen.findByText('Pronto subiremos nuevos artículos.')).toBeInTheDocument();
   });
 
-  it('si Supabase devuelve error no muestra artículos', async () => {
-    renderBlogs({ data: null, error: { message: 'falló' } });
+  it('si ms-blogs falla no muestra artículos', async () => {
+    renderBlogs(new Error('falló'));
     expect(await screen.findByText('Pronto subiremos nuevos artículos.')).toBeInTheDocument();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
   });
 
-  it('si la respuesta no trae datos ni error muestra el mensaje de \"pronto subiremos\"', async () => {
-    renderBlogs({ data: null, error: null });
+  it('si la respuesta no trae datos muestra el mensaje de \"pronto subiremos\"', async () => {
+    renderBlogs(null);
     expect(await screen.findByText('Pronto subiremos nuevos artículos.')).toBeInTheDocument();
   });
 });

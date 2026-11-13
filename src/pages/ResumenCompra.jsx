@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { obtenerOrden } from '../api/ordenesApi';
 import { useAuth } from '../context/AuthContext';
 import { formatoCLP } from '../lib/validaciones';
 
@@ -20,17 +20,18 @@ export default function ResumenCompra() {
         return;
       }
       
-      const { data: orden } = await supabase.from('ordenes').select('*').eq('id', ordenId).single();
-      if (!orden) {
+      let orden;
+      try {
+        orden = await obtenerOrden(ordenId); 
+      } catch {
         setCargando(false);
         return;
       }
-      const { data: itemsOrden } = await supabase.from('orden_items').select('*').eq('orden_id', ordenId);
       setDatos({
         exito: orden.estado === 'exitosa',
         ordenId: orden.id,
         total: orden.total,
-        items: (itemsOrden || []).map((it) => ({ nombre: it.nombre_producto, cantidad: it.cantidad, precio: it.precio_unitario })),
+        items: (orden.items || []).map((it) => ({ nombre: it.nombre_producto, cantidad: it.cantidad, precio: it.precio_unitario })),
         comprador: {
           nombre: orden.nombre_comprador, apellidos: orden.apellidos_comprador, correo: orden.correo_comprador,
           region: orden.region, comuna: orden.comuna, direccion: orden.direccion,

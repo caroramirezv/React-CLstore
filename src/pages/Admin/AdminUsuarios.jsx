@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
-import { supabase } from '../../lib/supabaseClient';
+import { listarUsuarios, crearUsuario, actualizarUsuario, eliminarUsuario } from '../../api/usuariosApi';
 import { useAuth } from '../../context/AuthContext';
 import { REGIONES_Y_COMUNAS } from '../../data/regionesYComunas';
 import { validarRunChileno, formatearRun } from '../../lib/validaciones';
@@ -20,8 +20,11 @@ export default function AdminUsuarios() {
   const comunasDisponibles = REGIONES_Y_COMUNAS.find((r) => r.region === form.region)?.comunas || [];
 
   async function cargarUsuarios() {
-    const { data } = await supabase.from('perfiles').select('*').order('nombre');
-    setUsuarios(data || []);
+    try {
+      setUsuarios((await listarUsuarios()) || []);
+    } catch {
+      setUsuarios([]);
+    }
   }
 
   useEffect(() => {
@@ -59,50 +62,26 @@ export default function AdminUsuarios() {
       Swal.fire('Datos incompletos', 'Completa todos los campos obligatorios.', 'error');
       return;
     }
-    // Supabase Auth exige 6 caracteres como mínimo por defecto.
+    // ms-usuarios exige 6 caracteres como mínimo.
     if (!esEdicion && (password.length < 6 || password.length > 10)) {
       Swal.fire('Contraseña inválida', 'La contraseña debe tener entre 6 y 10 caracteres.', 'error');
       return;
     }
 
-    if (esEdicion) {
-      const { error } = await supabase
-        .from('perfiles')
-        .update({ tipo, nombre, apellidos, correo, fecha_nacimiento: fechaNacimiento || null, region, comuna, direccion })
-        .eq('id', form.id);
-      if (error) { Swal.fire('Error', error.message, 'error'); return; }
-    } else {
-      const { data: sesionActual } = await supabase.auth.getSession();
-      const { error } = await supabase.functions.invoke('create-user', {
-        body: { run: runFormateado, tipo, nombre, apellidos, correo, fechaNacimiento, password, region, comuna, direccion },
-        headers: { Authorization: `Bearer ${sesionActual.session?.access_token}` },
-      });
-
-      if (error) {
-        console.error('Error al crear usuario:', error);
-
-        if (error.context) {
-          try {
-            console.error(
-              'Respuesta de Supabase:',
-              await error.context.clone().json()
-            );
-          } catch {
-            console.error(
-              'Respuesta de texto:',
-              await error.context.clone().text()
-            );
-          }
-        }
-
-        Swal.fire(
-          'No se pudo crear el usuario',
-          error.message || 'Error desconocido',
-          'error'
-        );
-
-        return;
+    try {
+      if (esEdicion) {
+        await actualizarUsuario(form.id, {
+          tipo, nombre, apellidos, correo, fecha_nacimiento: fechaNacimiento || null, region, comuna, direccion,
+        });
+      } else {
+        await crearUsuario({
+          run: runFormateado, tipo, nombre, apellidos, correo,
+          fecha_nacimiento: fechaNacimiento || null, password, region, comuna, direccion,
+        });
       }
+    } catch (error) {
+      Swal.fire(esEdicion ? 'Error' : 'No se pudo crear el usuario', error.message || 'Error desconocido', 'error');
+      return;
     }
 
     await cargarUsuarios();
@@ -121,8 +100,12 @@ export default function AdminUsuarios() {
     });
     if (!resultado.isConfirmed) return;
 
-    const { error } = await supabase.from('perfiles').delete().eq('id', u.id);
-    if (error) { Swal.fire('Error', error.message, 'error'); return; }
+    try {
+      await eliminarUsuario(u.id);
+    } catch (error) {
+      Swal.fire('Error', error.message, 'error');
+      return;
+    }
     await cargarUsuarios();
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Usuario eliminado', showConfirmButton: false, timer: 1500 });
   }

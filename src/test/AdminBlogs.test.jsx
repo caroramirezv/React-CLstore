@@ -6,34 +6,24 @@ import AdminBlogs from '../pages/Admin/AdminBlogs';
 vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }));
 vi.mock('bootstrap', () => ({ Modal: { getInstance: () => null } }));
 
-// Una función por operación: listar, buscar repetido, insertar, actualizar y borrar.
+// ms-blogs: una función por operación (listar, crear, actualizar, borrar y subir imagen).
 const mocks = vi.hoisted(() => ({
-  lista: { data: [], error: null },
-  existente: { data: null, error: null },
+  lista: [],
   insert: vi.fn(),
   update: vi.fn(),
   eliminar: vi.fn(),
   upload: vi.fn(),
 }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    storage: {
-      from: () => ({
-        upload: (ruta, archivo, opciones) => mocks.upload(ruta, archivo, opciones),
-        getPublicUrl: (ruta) => ({ data: { publicUrl: `https://cdn.test/${ruta}` } }),
-      }),
-    },
-    from: () => ({
-      select: (columnas) =>
-        columnas === '*'
-          ? { order: () => Promise.resolve(mocks.lista) }
-          : { eq: () => ({ maybeSingle: () => Promise.resolve(mocks.existente) }) },
-      insert: (fila) => mocks.insert(fila),
-      update: (payload) => ({ eq: (col, valor) => mocks.update(payload, col, valor) }),
-      delete: () => ({ eq: (col, valor) => mocks.eliminar(col, valor) }),
-    }),
-  },
+vi.mock('../api/blogsApi', () => ({
+  listarBlogs: () => (mocks.lista instanceof Error ? Promise.reject(mocks.lista) : Promise.resolve(mocks.lista)),
+  crearBlog: (blog) => mocks.insert(blog),
+  actualizarBlog: (id, blog) => mocks.update(id, blog),
+  eliminarBlog: (id) => mocks.eliminar(id),
+  subirImagenBlog: (archivo) => mocks.upload(archivo),
 }));
+
+// Error de microservicio (ApiError) con el código HTTP, como lo lanza src/api/http.js
+const errorApi = (mensaje, status) => Object.assign(new Error(mensaje), { status });
 
 const blogs = [
   { id: 'guia-pc', titulo: 'Cómo armar un PC', resumen: 'Guía corta', imagen: 'pc.jpg',
@@ -49,8 +39,9 @@ const enviar = () => fireEvent.submit(campo('Título *').closest('form'));
 const fila = (titulo) => screen.getByText(titulo).closest('tr');
 const toast = (titulo) => expect.objectContaining({ title: titulo });
 
-function renderBlogs(respuesta = { data: blogs, error: null }) {
-  mocks.lista = respuesta;
+// lista: blogs, null (sin datos) o un Error (ms-blogs falla)
+function renderBlogs(lista = blogs) {
+  mocks.lista = lista;
   render(<AdminBlogs />);
   return userEvent.setup();
 }
@@ -66,11 +57,10 @@ describe('AdminBlogs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Swal.fire.mockResolvedValue({ isConfirmed: true });
-    mocks.existente = { data: null, error: null };
-    mocks.insert.mockResolvedValue({ error: null });
-    mocks.update.mockResolvedValue({ error: null });
-    mocks.eliminar.mockResolvedValue({ error: null });
-    mocks.upload.mockResolvedValue({ error: null });
+    mocks.insert.mockResolvedValue({});
+    mocks.update.mockResolvedValue({});
+    mocks.eliminar.mockResolvedValue(null);
+    mocks.upload.mockResolvedValue('https://cdn.test/blogs/portada-subida.png');
     URL.createObjectURL = vi.fn(() => 'blob:vista-previa');
   });
 
@@ -85,12 +75,12 @@ describe('AdminBlogs', () => {
     });
 
     it('sin blogs muestra el mensaje de vacío', async () => {
-      renderBlogs({ data: [], error: null });
+      renderBlogs([]);
       expect(await screen.findByText('Todavía no hay blogs publicados.')).toBeInTheDocument();
     });
 
     it('si la carga falla avisa con un Swal', async () => {
-      renderBlogs({ data: null, error: { message: 'falló' } });
+      renderBlogs(new Error('falló'));
       await waitFor(() =>
         expect(Swal.fire).toHaveBeenCalledWith('No se pudieron cargar los blogs', 'falló', 'error')
       );
@@ -135,19 +125,18 @@ describe('AdminBlogs', () => {
       expect(mocks.insert).not.toHaveBeenCalled();
     });
 
-    it('rechaza un identificador que ya existe', async () => {
-      mocks.existente = { data: { id: 'nuevo-blog' }, error: null };
+    it('rechaza un identificador que ya existe (ms-blogs responde 409)', async () => {
+      mocks.insert.mockRejectedValue(errorApi('Ya existe un blog con ese identificador.', 409));
       const user = renderBlogs();
       await screen.findByText('Cómo armar un PC');
       await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
       llenarBlogNuevo();
       enviar();
       await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith('Identificador repetido', expect.any(String), 'error'));
-      expect(mocks.insert).not.toHaveBeenCalled();
     });
 
-    it('si Supabase falla al insertar muestra el error', async () => {
-      mocks.insert.mockResolvedValue({ error: { message: 'falló' } });
+    it('si ms-blogs falla al crear muestra el error', async () => {
+      mocks.insert.mockRejectedValue(errorApi('falló', 500));
       const user = renderBlogs();
       await screen.findByText('Cómo armar un PC');
       await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
@@ -194,33 +183,21 @@ describe('AdminBlogs', () => {
       expect(screen.getByAltText('Vista previa')).toHaveAttribute('src', 'blob:vista-previa');
     });
 
-    it('sube la imagen y guarda su URL pública', async () => {
+    it('sube la imagen a ms-blogs y guarda la URL que devuelve', async () => {
       await abrirNuevo();
       llenarBlogNuevo();
       const foto = new File(['img'], 'Portada.PNG', { type: 'image/png' });
       elegir(foto);
       enviar();
       await waitFor(() => expect(mocks.insert).toHaveBeenCalled());
-      const [ruta, archivo, opciones] = mocks.upload.mock.calls[0];
-      expect(ruta).toMatch(/^nuevo-blog\/\d+\.png$/);
-      expect(archivo).toBe(foto);
-      expect(opciones).toEqual({ cacheControl: '3600', upsert: false, contentType: 'image/png' });
+      expect(mocks.upload).toHaveBeenCalledWith(foto);
       expect(mocks.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'nuevo-blog', imagen: `https://cdn.test/${ruta}` })
+        expect.objectContaining({ id: 'nuevo-blog', imagen: 'https://cdn.test/blogs/portada-subida.png' })
       );
     });
 
-    it('usa la extensión jpg si el nombre del archivo no tiene una válida', async () => {
-      await abrirNuevo();
-      llenarBlogNuevo();
-      elegir(new File(['img'], 'portada.!!!', { type: 'image/jpeg' }));
-      enviar();
-      await waitFor(() => expect(mocks.upload).toHaveBeenCalled());
-      expect(mocks.upload.mock.calls[0][0]).toMatch(/^nuevo-blog\/\d+\.jpg$/);
-    });
-
     it('si falla la subida avisa con el motivo y no guarda el blog', async () => {
-      mocks.upload.mockResolvedValue({ error: { message: 'bucket no existe' } });
+      mocks.upload.mockRejectedValue(errorApi('bucket no existe', 500));
       await abrirNuevo();
       llenarBlogNuevo();
       elegir(new File(['img'], 'portada.png', { type: 'image/png' }));
@@ -286,9 +263,8 @@ describe('AdminBlogs', () => {
       enviar();
       await waitFor(() =>
         expect(mocks.update).toHaveBeenCalledWith(
-          expect.objectContaining({ titulo: 'Armar un PC en 2026', contenido: ['Uno', 'Dos'] }),
-          'id',
-          'guia-pc'
+          'guia-pc',
+          expect.objectContaining({ titulo: 'Armar un PC en 2026', contenido: ['Uno', 'Dos'] })
         )
       );
       expect(Swal.fire).toHaveBeenCalledWith(toast('Blog actualizado'));
@@ -301,7 +277,7 @@ describe('AdminBlogs', () => {
       const user = renderBlogs();
       await screen.findByText('Ofertas de octubre');
       await user.click(within(fila('Ofertas de octubre')).getByRole('button', { name: 'Eliminar' }));
-      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('id', 'ofertas'));
+      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('ofertas'));
       expect(Swal.fire).toHaveBeenCalledWith(toast('Blog eliminado'));
     });
 
@@ -314,8 +290,8 @@ describe('AdminBlogs', () => {
       expect(mocks.eliminar).not.toHaveBeenCalled();
     });
 
-    it('si Supabase falla al borrar muestra el error', async () => {
-      mocks.eliminar.mockResolvedValue({ error: { message: 'sin permisos' } });
+    it('si ms-blogs falla al borrar muestra el error', async () => {
+      mocks.eliminar.mockRejectedValue(errorApi('sin permisos', 403));
       const user = renderBlogs();
       await screen.findByText('Ofertas de octubre');
       await user.click(within(fila('Ofertas de octubre')).getByRole('button', { name: 'Eliminar' }));
@@ -324,17 +300,14 @@ describe('AdminBlogs', () => {
   });
 
   describe('casos límite', () => {
-    it('si la lista llega sin datos ni error muestra el mensaje de vacío', async () => {
-      renderBlogs({ data: null, error: null });
+    it('si la lista llega sin datos muestra el mensaje de vacío', async () => {
+      renderBlogs(null);
       expect(await screen.findByText('Todavía no hay blogs publicados.')).toBeInTheDocument();
     });
 
     it('un blog sin resumen ni datos opcionales se lista y se abre vacío al editar', async () => {
-      const user = renderBlogs({
-        data: [{ id: 'vacio', titulo: 'Sin datos', resumen: null, imagen: null, contenido: null,
-          fuente_nombre: null, fuente_url: null, created_at: null }],
-        error: null,
-      });
+      const user = renderBlogs([{ id: 'vacio', titulo: 'Sin datos', resumen: null, imagen: null, contenido: null,
+        fuente_nombre: null, fuente_url: null, created_at: null }]);
       await screen.findByText('Sin datos');
       expect(within(fila('Sin datos')).getByText('Sin resumen')).toBeInTheDocument();
       await user.click(within(fila('Sin datos')).getByRole('button', { name: 'Editar' }));
@@ -344,21 +317,8 @@ describe('AdminBlogs', () => {
       expect(campo('URL de la fuente')).toHaveValue('');
     });
 
-    it('si falla la consulta de identificador repetido muestra el error', async () => {
-      mocks.existente = { data: null, error: { message: 'consulta falló' } };
-      const user = renderBlogs();
-      await screen.findByText('Cómo armar un PC');
-      await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));
-      llenarBlogNuevo();
-      enviar();
-      await waitFor(() =>
-        expect(Swal.fire).toHaveBeenCalledWith('No se pudo guardar el blog', 'consulta falló', 'error')
-      );
-      expect(mocks.insert).not.toHaveBeenCalled();
-    });
-
     it('si el error de guardado no trae mensaje usa uno genérico', async () => {
-      mocks.insert.mockResolvedValue({ error: {} });
+      mocks.insert.mockRejectedValue({});
       const user = renderBlogs();
       await screen.findByText('Cómo armar un PC');
       await user.click(screen.getByRole('button', { name: /Nuevo blog/ }));

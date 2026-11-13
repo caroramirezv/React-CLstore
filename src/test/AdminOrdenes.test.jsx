@@ -2,15 +2,14 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AdminOrdenes from '../pages/Admin/AdminOrdenes';
 
-// Consulta 1: la lista de órdenes. Consulta 2 (al abrir una boleta): los items de esa orden.
-const mocks = vi.hoisted(() => ({ ordenes: { data: [], error: null }, items: {}, itemsError: null }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: (tabla) =>
-      tabla === 'orden_items'
-        ? { select: () => ({ eq: (_col, id) => Promise.resolve({ data: Object.hasOwn(mocks.items, id) ? mocks.items[id] : [], error: mocks.itemsError }) }) }
-        : { select: () => ({ order: () => Promise.resolve(mocks.ordenes) }) },
-  },
+// ms-ordenes: la lista de órdenes y, al abrir una boleta, el detalle de esa orden (con sus items).
+const mocks = vi.hoisted(() => ({ ordenes: [], items: {}, itemsError: null }));
+vi.mock('../api/ordenesApi', () => ({
+  listarOrdenes: () => (mocks.ordenes instanceof Error ? Promise.reject(mocks.ordenes) : Promise.resolve(mocks.ordenes)),
+  obtenerOrden: (id) =>
+    mocks.itemsError
+      ? Promise.reject(mocks.itemsError)
+      : Promise.resolve({ id, items: Object.hasOwn(mocks.items, id) ? mocks.items[id] : [] }),
 }));
 
 const ordenes = [
@@ -26,7 +25,8 @@ const ordenes = [
   },
 ];
 
-function renderOrdenes(respuesta = { data: ordenes, error: null }) {
+// respuesta: lista de órdenes, null (sin datos) o un Error (ms-ordenes falla)
+function renderOrdenes(respuesta = ordenes) {
   mocks.ordenes = respuesta;
   mocks.itemsError = null;
   mocks.items = {
@@ -61,13 +61,13 @@ describe('AdminOrdenes', () => {
   });
 
   it('sin órdenes muestra el mensaje de vacío', async () => {
-    renderOrdenes({ data: [], error: null });
+    renderOrdenes([]);
     expect(await screen.findByText('Todavía no hay órdenes registradas.')).toBeInTheDocument();
   });
 
-  it('si la consulta falla no muestra órdenes', async () => {
+  it('si ms-ordenes falla no muestra órdenes', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    renderOrdenes({ data: null, error: { message: 'falló' } });
+    renderOrdenes(new Error('falló'));
     expect(await screen.findByText('Todavía no hay órdenes registradas.')).toBeInTheDocument();
   });
 
@@ -126,7 +126,7 @@ describe('AdminOrdenes', () => {
   it('si falla la consulta de los productos de la orden lo registra en consola', async () => {
     const consola = vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = renderOrdenes();
-    mocks.itemsError = { message: 'falló' };
+    mocks.itemsError = new Error('falló');
     await screen.findByText('Ana Pérez');
     await user.click(within(fila('Ana Pérez')).getByRole('button', { name: 'Ver boleta' }));
     await waitFor(() =>
@@ -137,13 +137,10 @@ describe('AdminOrdenes', () => {
   it('la boleta usa textos por defecto cuando faltan datos de la orden', async () => {
     const ventana = { document: { write: vi.fn(), close: vi.fn() } };
     vi.spyOn(window, 'open').mockReturnValue(ventana);
-    const user = renderOrdenes({
-      data: [{
-        id: 43, creado_en: '2026-10-10T10:00:00', total: 0, estado: null, nombre_comprador: null,
-        apellidos_comprador: null, correo_comprador: null, direccion: null, comuna: null, region: null,
-      }],
-      error: null,
-    });
+    const user = renderOrdenes([{
+      id: 43, creado_en: '2026-10-10T10:00:00', total: 0, estado: null, nombre_comprador: null,
+      apellidos_comprador: null, correo_comprador: null, direccion: null, comuna: null, region: null,
+    }]);
     mocks.items[43] = [{ id: 'i3', nombre_producto: null, cantidad: null, precio_unitario: null }];
     await screen.findByText('#43');
     await user.click(screen.getByRole('button', { name: 'Ver boleta' }));
@@ -156,8 +153,8 @@ describe('AdminOrdenes', () => {
     expect(html).toContain('<td>Producto</td>');
   });
 
-  it('si la lista llega sin datos ni error muestra el mensaje de vacío', async () => {
-    renderOrdenes({ data: null, error: null });
+  it('si la lista llega sin datos muestra el mensaje de vacío', async () => {
+    renderOrdenes(null);
     expect(await screen.findByText('Todavía no hay órdenes registradas.')).toBeInTheDocument();
   });
 

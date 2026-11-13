@@ -5,12 +5,17 @@ import Productos from '../pages/Productos';
 
 vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
 
-const mocks = vi.hoisted(() => ({ respuesta: { data: [], error: null } }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: { from: () => ({ select: () => Promise.resolve(mocks.respuesta) }) },
-}));
+const mocks = vi.hoisted(() => ({ listarProductos: vi.fn(), listarCategorias: vi.fn() }));
+vi.mock('../api/productosApi', () => ({ listarProductos: (...args) => mocks.listarProductos(...args) }));
+vi.mock('../api/categoriasApi', () => ({ listarCategorias: (...args) => mocks.listarCategorias(...args) }));
 
 import { useCart } from '../context/CartContext';
+
+const categoriasApi = [
+  { valor: 'componentes', etiqueta: 'Componentes', icono: 'fa-microchip' },
+  { valor: 'consolas', etiqueta: 'Consolas & Laptops', icono: 'fa-gamepad' },
+  { valor: 'perifericos', etiqueta: 'Periféricos & Monitores', icono: 'fa-keyboard' },
+];
 
 const catalogo = [
   { id: 1, nombre: 'Mouse Logitech', precio: 10000, imagen: 'mouse.jpg', categoria: 'perifericos', busqueda: 'mouse raton' },
@@ -35,7 +40,8 @@ const tarjeta = (nombre) => screen.queryByRole('heading', { name: nombre });
 describe('Productos', () => {
   beforeEach(() => {
     useCart.mockReturnValue({ agregarProducto: vi.fn() });
-    mocks.respuesta = { data: catalogo, error: null };
+    mocks.listarProductos.mockResolvedValue(catalogo);
+    mocks.listarCategorias.mockResolvedValue(categoriasApi);
   });
 
   describe('carga y renderizado', () => {
@@ -57,8 +63,8 @@ describe('Productos', () => {
       expect(tarjeta('Nintendo Switch')).toBeInTheDocument();
     });
 
-    it('si Supabase devuelve error no muestra productos y avisa que no hay resultados', async () => {
-      mocks.respuesta = { data: null, error: { message: 'falló' } };
+    it('si ms-productos falla no muestra productos y avisa que no hay resultados', async () => {
+      mocks.listarProductos.mockRejectedValue(new Error('falló'));
       render(
         <MemoryRouter>
           <Productos />
@@ -94,6 +100,29 @@ describe('Productos', () => {
     });
   });
 
+  describe('categorías desde ms-categoria', () => {
+    it('los filtros salen de ms-categoria, incluidas las categorías nuevas', async () => {
+      mocks.listarCategorias.mockResolvedValue([...categoriasApi, { valor: 'audio', etiqueta: 'Audio', icono: 'fa-folder' }]);
+      await renderProductos();
+      expect(await screen.findByRole('button', { name: 'Audio' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Todos' })).toBeInTheDocument();
+    });
+
+    it('si ms-categoria falla conserva los filtros por defecto', async () => {
+      mocks.listarCategorias.mockRejectedValue(new Error('sin conexión'));
+      await renderProductos();
+      expect(screen.getByRole('button', { name: 'Componentes' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Consolas & Laptops' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Periféricos & Monitores' })).toBeInTheDocument();
+    });
+
+    it('si ms-categoria responde una lista vacía conserva los filtros por defecto', async () => {
+      mocks.listarCategorias.mockResolvedValue([]);
+      await renderProductos();
+      expect(screen.getByRole('button', { name: 'Componentes' })).toBeInTheDocument();
+    });
+  });
+
   describe('búsqueda por texto', () => {
     it('filtra por nombre sin distinguir mayúsculas', async () => {
       const user = await renderProductos();
@@ -125,8 +154,8 @@ describe('Productos', () => {
   });
 
   describe('datos incompletos', () => {
-    it('si la respuesta no trae datos ni error muestra \"No se encontraron productos.\"', async () => {
-      mocks.respuesta = { data: null, error: null };
+    it('si la respuesta no trae datos muestra \"No se encontraron productos.\"', async () => {
+      mocks.listarProductos.mockResolvedValue(null);
       render(
         <MemoryRouter>
           <Productos />
@@ -136,13 +165,10 @@ describe('Productos', () => {
     });
 
     it('busca aunque un producto no tenga nombre o no tenga texto de búsqueda', async () => {
-      mocks.respuesta = {
-        data: [
-          { id: 4, nombre: 'Cable HDMI', precio: 5000, imagen: 'cable.jpg', categoria: 'perifericos', busqueda: null },
-          { id: 5, nombre: null, precio: 7000, imagen: 'adaptador.jpg', categoria: 'perifericos', busqueda: 'adaptador usb' },
-        ],
-        error: null,
-      };
+      mocks.listarProductos.mockResolvedValue([
+        { id: 4, nombre: 'Cable HDMI', precio: 5000, imagen: 'cable.jpg', categoria: 'perifericos', busqueda: null },
+        { id: 5, nombre: null, precio: 7000, imagen: 'adaptador.jpg', categoria: 'perifericos', busqueda: 'adaptador usb' },
+      ]);
       const user = userEvent.setup();
       render(
         <MemoryRouter>

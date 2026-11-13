@@ -3,6 +3,7 @@ import { listarProductos } from '../api/productosApi';
 import { listarCategorias } from '../api/categoriasApi';
 import ProductCard from '../components/ProductCard';
 
+// Filtros por defecto; se reemplazan por las categorías de ms-categoria cuando responde.
 const FILTROS = [
   { valor: 'all', etiqueta: 'Todos' },
   { valor: 'componentes', etiqueta: 'Componentes' },
@@ -33,7 +34,7 @@ export default function Productos() {
           ...categorias.map((c) => ({ valor: c.valor, etiqueta: c.etiqueta })),
         ]);
       })
-      .catch(() => {}); 
+      .catch(() => {}); // sin ms-categoria se mantienen los filtros por defecto
   }, []);
 
   const filtrados = useMemo(() => {

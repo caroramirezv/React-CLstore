@@ -4,14 +4,8 @@ import Home from '../pages/Home';
 
 vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
 vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));
-const mocks = vi.hoisted(() => ({ respuesta: { data: [] } }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({ order: () => ({ limit: () => Promise.resolve(mocks.respuesta) }) }),
-    }),
-  },
-}));
+const mocks = vi.hoisted(() => ({ listarProductos: vi.fn() }));
+vi.mock('../api/productosApi', () => ({ listarProductos: (...args) => mocks.listarProductos(...args) }));
 
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -25,7 +19,7 @@ const destacados = [
 async function renderHome({ perfil = null, data = destacados } = {}) {
   useCart.mockReturnValue({ agregarProducto: vi.fn() });
   useAuth.mockReturnValue({ perfil });
-  mocks.respuesta = { data };
+  mocks.listarProductos.mockResolvedValue(data);
   // act asíncrono: deja terminar la consulta de destacados antes de seguir
   await act(async () => {
     render(
@@ -48,6 +42,26 @@ describe('Home', () => {
 
   it('sin destacados no muestra tarjetas', async () => {
     await renderHome({ data: null });
+    expect(screen.getByRole('heading', { name: 'Productos Destacados' })).toBeInTheDocument();
+    expect(screen.queryAllByRole('heading', { level: 5 })).toHaveLength(0);
+  });
+
+  it('pide a ms-productos los 3 productos más antiguos', async () => {
+    await renderHome();
+    expect(mocks.listarProductos).toHaveBeenCalledWith({ orden: 'creado_asc', limit: 3 });
+  });
+
+  it('si ms-productos falla no muestra tarjetas y la página sigue funcionando', async () => {
+    useCart.mockReturnValue({ agregarProducto: vi.fn() });
+    useAuth.mockReturnValue({ perfil: null });
+    mocks.listarProductos.mockRejectedValue(new Error('sin conexión'));
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <Home />
+        </MemoryRouter>
+      );
+    });
     expect(screen.getByRole('heading', { name: 'Productos Destacados' })).toBeInTheDocument();
     expect(screen.queryAllByRole('heading', { level: 5 })).toHaveLength(0);
   });

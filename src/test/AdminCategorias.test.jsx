@@ -2,25 +2,20 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AdminCategorias from '../pages/Admin/AdminCategorias';
 
+// ms-productos y ms-categoria: cada función devuelve lo que se configure (o rechaza si es un Error).
 const mocks = vi.hoisted(() => ({
-  respuestas: {
-    productos: { data: [], error: null },
-    categorias: { data: [], error: null },
-  },
-  order: vi.fn(),
-  insert: vi.fn(),
-  update: vi.fn(),
+  listarProductos: vi.fn(),
+  listarCategorias: vi.fn(),
+  crear: vi.fn(),
+  actualizar: vi.fn(),
   eliminar: vi.fn(),
 }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: (tabla) => ({
-      select: () => ({ order: () => mocks.order(tabla) }),
-      insert: (fila) => mocks.insert(tabla, fila),
-      update: (payload) => ({ eq: (col, valor) => mocks.update(payload, col, valor) }),
-      delete: () => ({ eq: (col, valor) => mocks.eliminar(col, valor) }),
-    }),
-  },
+vi.mock('../api/productosApi', () => ({ listarProductos: (...args) => mocks.listarProductos(...args) }));
+vi.mock('../api/categoriasApi', () => ({
+  listarCategorias: (...args) => mocks.listarCategorias(...args),
+  crearCategoria: (...args) => mocks.crear(...args),
+  actualizarCategoria: (...args) => mocks.actualizar(...args),
+  eliminarCategoria: (...args) => mocks.eliminar(...args),
 }));
 
 const categorias = [
@@ -38,12 +33,12 @@ const productos = [
   { id: 'p4', nombre: 'Headset', precio: 30000, stock: 1, categoria: 'gaming_gear', imagen: 'h.jpg' },
 ];
 
+// respuestas: { productos, categorias } -> lista, null (sin datos) o un Error (el microservicio falla)
 function renderCategorias(respuestas = {}) {
-  mocks.respuestas = {
-    productos: { data: productos, error: null },
-    categorias: { data: categorias, error: null },
-    ...respuestas,
-  };
+  const r = { productos, categorias, ...respuestas };
+  const responder = (valor) => (valor instanceof Error ? Promise.reject(valor) : Promise.resolve(valor));
+  mocks.listarProductos.mockImplementation(() => responder(r.productos));
+  mocks.listarCategorias.mockImplementation(() => responder(r.categorias));
   render(<AdminCategorias />);
   return userEvent.setup();
 }
@@ -59,10 +54,9 @@ const botonCrear = () => screen.getByRole('button', { name: 'Crear categoría' }
 describe('AdminCategorias', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.order.mockImplementation((tabla) => Promise.resolve(mocks.respuestas[tabla]));
-    mocks.insert.mockResolvedValue({ error: null });
-    mocks.update.mockResolvedValue({ error: null });
-    mocks.eliminar.mockResolvedValue({ error: null });
+    mocks.crear.mockResolvedValue({});
+    mocks.actualizar.mockResolvedValue({});
+    mocks.eliminar.mockResolvedValue(null);
   });
 
   describe('listado', () => {
@@ -73,11 +67,11 @@ describe('AdminCategorias', () => {
       expect(screen.queryByText('Cargando categorías...')).not.toBeInTheDocument();
     });
 
-    it('lee las dos tablas: productos y categorias', async () => {
+    it('consulta los dos microservicios: ms-productos y ms-categoria', async () => {
       renderCategorias();
       await screen.findByText('Componentes');
-      expect(mocks.order).toHaveBeenCalledWith('productos');
-      expect(mocks.order).toHaveBeenCalledWith('categorias');
+      expect(mocks.listarProductos).toHaveBeenCalledWith({ orden: 'nombre' });
+      expect(mocks.listarCategorias).toHaveBeenCalledTimes(1);
     });
 
     it('muestra las categorías de la tabla con su etiqueta', async () => {
@@ -113,58 +107,52 @@ describe('AdminCategorias', () => {
     });
 
     it('sin categorías muestra el mensaje para crear la primera', async () => {
-      renderCategorias({ categorias: { data: [], error: null } });
+      renderCategorias({ categorias: [] });
       expect(
         await screen.findByText('Aún no hay categorías. Crea la primera con el formulario de arriba.')
       ).toBeInTheDocument();
     });
 
-    it('si la respuesta de categorías no trae datos ni error muestra el mensaje de vacío', async () => {
-      renderCategorias({ categorias: { data: null, error: null } });
+    it('si la respuesta de categorías no trae datos muestra el mensaje de vacío', async () => {
+      renderCategorias({ categorias: null });
       expect(
         await screen.findByText('Aún no hay categorías. Crea la primera con el formulario de arriba.')
       ).toBeInTheDocument();
     });
 
     it('si la consulta de productos falla muestra el error', async () => {
-      renderCategorias({ productos: { data: null, error: { message: 'falló' } } });
+      renderCategorias({ productos: new Error('falló') });
       expect(await screen.findByText('Error al cargar productos: falló')).toBeInTheDocument();
     });
 
     it('si la consulta de categorías falla muestra el error', async () => {
-      renderCategorias({ categorias: { data: null, error: { message: 'falló' } } });
+      renderCategorias({ categorias: new Error('falló') });
       expect(await screen.findByText('Error al cargar categorías: falló')).toBeInTheDocument();
     });
 
-    it('"Actualizar" vuelve a consultar las dos tablas', async () => {
+    it('"Actualizar" vuelve a consultar los dos microservicios', async () => {
       const user = renderCategorias();
       await user.click(await screen.findByRole('button', { name: /Actualizar/ }));
-      await waitFor(() => expect(mocks.order).toHaveBeenCalledTimes(4));
+      await waitFor(() => expect(mocks.listarProductos).toHaveBeenCalledTimes(2));
+      expect(mocks.listarCategorias).toHaveBeenCalledTimes(2);
     });
 
   });
 
   describe('crear', () => {
-    it('crea la categoría con el valor generado a partir del nombre', async () => {
+    it('crea la categoría enviando solo la etiqueta (ms-categoria genera el valor)', async () => {
       const user = renderCategorias();
       await user.type(await screen.findByPlaceholderText('Nombre de la nueva categoría'), 'Tarjetas de video');
       await user.click(botonCrear());
-      await waitFor(() =>
-        expect(mocks.insert).toHaveBeenCalledWith('categorias', {
-          valor: 'tarjetas_de_video',
-          etiqueta: 'Tarjetas de video',
-        })
-      );
+      await waitFor(() => expect(mocks.crear).toHaveBeenCalledWith({ etiqueta: 'Tarjetas de video' }));
       expect(await screen.findByText('Categoría "Tarjetas de video" creada correctamente.')).toBeInTheDocument();
     });
 
-    it('quita las tildes al generar el valor', async () => {
+    it('conserva las tildes de la etiqueta tal cual la escribe el usuario', async () => {
       const user = renderCategorias();
       await user.type(await screen.findByPlaceholderText('Nombre de la nueva categoría'), 'Cámaras Web');
       await user.click(botonCrear());
-      await waitFor(() =>
-        expect(mocks.insert).toHaveBeenCalledWith('categorias', { valor: 'camaras_web', etiqueta: 'Cámaras Web' })
-      );
+      await waitFor(() => expect(mocks.crear).toHaveBeenCalledWith({ etiqueta: 'Cámaras Web' }));
     });
 
     it('al crear vacía el campo y vuelve a cargar las tablas', async () => {
@@ -173,7 +161,8 @@ describe('AdminCategorias', () => {
       await user.click(botonCrear());
       await screen.findByText('Categoría "Redes" creada correctamente.');
       expect(campoNueva()).toHaveValue('');
-      expect(mocks.order).toHaveBeenCalledTimes(4);
+      expect(mocks.listarProductos).toHaveBeenCalledTimes(2);
+      expect(mocks.listarCategorias).toHaveBeenCalledTimes(2);
     });
 
     it('rechaza una categoría que ya existe', async () => {
@@ -181,7 +170,7 @@ describe('AdminCategorias', () => {
       await user.type(await screen.findByPlaceholderText('Nombre de la nueva categoría'), 'Gaming Gear');
       await user.click(botonCrear());
       expect(await screen.findByText('Esa categoría ya existe.')).toBeInTheDocument();
-      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(mocks.crear).not.toHaveBeenCalled();
     });
 
     it('un nombre sin letras ni números no es válido', async () => {
@@ -189,11 +178,11 @@ describe('AdminCategorias', () => {
       await user.type(await screen.findByPlaceholderText('Nombre de la nueva categoría'), '!!!');
       await user.click(botonCrear());
       expect(await screen.findByText('Ingresa un nombre válido para la categoría.')).toBeInTheDocument();
-      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(mocks.crear).not.toHaveBeenCalled();
     });
 
-    it('si el insert falla muestra el error y conserva lo escrito', async () => {
-      mocks.insert.mockResolvedValue({ error: { message: 'violación de RLS' } });
+    it('si ms-categoria falla al crear muestra el error y conserva lo escrito', async () => {
+      mocks.crear.mockRejectedValue(new Error('violación de RLS'));
       const user = renderCategorias();
       await user.type(await screen.findByPlaceholderText('Nombre de la nueva categoría'), 'Cámaras');
       await user.click(botonCrear());
@@ -203,7 +192,7 @@ describe('AdminCategorias', () => {
 
     it('deshabilita el botón mientras se guarda', async () => {
       let terminar;
-      mocks.insert.mockReturnValue(
+      mocks.crear.mockReturnValue(
         new Promise((resolver) => {
           terminar = resolver;
         })
@@ -212,7 +201,7 @@ describe('AdminCategorias', () => {
       await user.type(await screen.findByPlaceholderText('Nombre de la nueva categoría'), 'Streaming');
       await user.click(botonCrear());
       expect(botonCrear()).toBeDisabled();
-      await act(async () => terminar({ error: null }));
+      await act(async () => terminar({}));
       await waitFor(() => expect(botonCrear()).toBeEnabled());
     });
   });
@@ -233,7 +222,7 @@ describe('AdminCategorias', () => {
       expect(screen.queryByLabelText('Nombre de la categoría')).not.toBeInTheDocument();
     });
 
-    it('guardar cambios actualiza la tabla categorias por su valor', async () => {
+    it('guardar cambios actualiza solo la etiqueta: el valor de la categoría no cambia', async () => {
       const user = renderCategorias();
       await screen.findByText('Periféricos & Monitores');
       await editarCategoria(user, 'Periféricos & Monitores');
@@ -241,18 +230,12 @@ describe('AdminCategorias', () => {
       await user.clear(input);
       await user.type(input, 'Computación');
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
-      await waitFor(() =>
-        expect(mocks.update).toHaveBeenCalledWith(
-          { valor: 'computacion', etiqueta: 'Computación' },
-          'valor',
-          'perifericos'
-        )
-      );
+      await waitFor(() => expect(mocks.actualizar).toHaveBeenCalledWith('perifericos', { etiqueta: 'Computación' }));
       expect(await screen.findByText('Categoría actualizada correctamente.')).toBeInTheDocument();
       expect(screen.getByText('Selecciona una categoría para editar')).toBeInTheDocument();
     });
 
-    it('permite cambiar solo la etiqueta cuando el valor generado no cambia', async () => {
+    it('permite cambiar la etiqueta aunque solo cambien tildes o mayúsculas', async () => {
       const user = renderCategorias();
       await screen.findByText('Periféricos & Monitores');
       await editarCategoria(user, 'Periféricos & Monitores');
@@ -260,13 +243,7 @@ describe('AdminCategorias', () => {
       await user.clear(input);
       await user.type(input, 'Perifericos');
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
-      await waitFor(() =>
-        expect(mocks.update).toHaveBeenCalledWith(
-          { valor: 'perifericos', etiqueta: 'Perifericos' },
-          'valor',
-          'perifericos'
-        )
-      );
+      await waitFor(() => expect(mocks.actualizar).toHaveBeenCalledWith('perifericos', { etiqueta: 'Perifericos' }));
     });
 
     it('no deja renombrar a un nombre que ya usa otra categoría', async () => {
@@ -278,12 +255,12 @@ describe('AdminCategorias', () => {
       await user.type(input, 'Audio');
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
       expect(await screen.findByText('Ya existe otra categoría con ese nombre.')).toBeInTheDocument();
-      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.actualizar).not.toHaveBeenCalled();
       expect(screen.getByLabelText('Nombre de la categoría')).toBeInTheDocument();
     });
 
-    it('si el update falla muestra el error y deja abierto el formulario', async () => {
-      mocks.update.mockResolvedValue({ error: { message: 'violación de clave foránea' } });
+    it('si ms-categoria falla al actualizar muestra el error y deja abierto el formulario', async () => {
+      mocks.actualizar.mockRejectedValue(new Error('violación de clave foránea'));
       const user = renderCategorias();
       await screen.findByText('Periféricos & Monitores');
       await editarCategoria(user, 'Periféricos & Monitores');
@@ -303,7 +280,7 @@ describe('AdminCategorias', () => {
       await user.type(input, '!!!');
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
       expect(await screen.findByText('Ingresa un nombre válido para la categoría.')).toBeInTheDocument();
-      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.actualizar).not.toHaveBeenCalled();
     });
   });
 
@@ -318,17 +295,18 @@ describe('AdminCategorias', () => {
       expect(mocks.eliminar).not.toHaveBeenCalled();
     });
 
-    it('elimina de la tabla una categoría sin productos y vuelve a cargar', async () => {
+    it('elimina en ms-categoria una categoría sin productos y vuelve a cargar', async () => {
       const user = renderCategorias();
       await screen.findByText('Audio');
       await eliminarCategoria(user, 'Audio');
-      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('valor', 'audio'));
+      await waitFor(() => expect(mocks.eliminar).toHaveBeenCalledWith('audio'));
       expect(await screen.findByText('Categoría "Audio" eliminada.')).toBeInTheDocument();
-      expect(mocks.order).toHaveBeenCalledTimes(4);
+      expect(mocks.listarProductos).toHaveBeenCalledTimes(2);
+      expect(mocks.listarCategorias).toHaveBeenCalledTimes(2);
     });
 
-    it('si el delete falla muestra el error', async () => {
-      mocks.eliminar.mockResolvedValue({ error: { message: 'sin permisos' } });
+    it('si ms-categoria rechaza el borrado (409) muestra su mensaje', async () => {
+      mocks.eliminar.mockRejectedValue(new Error('sin permisos'));
       const user = renderCategorias();
       await screen.findByText('Audio');
       await eliminarCategoria(user, 'Audio');

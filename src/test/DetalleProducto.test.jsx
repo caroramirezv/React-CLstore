@@ -5,25 +5,25 @@ import DetalleProducto from '../pages/DetalleProducto';
 
 vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
 
-// La vista hace 3 consultas: el producto, sus reseñas y los productos relacionados.
+// La ficha usa ms-productos (producto y relacionados) y ms-resenas (reseñas).
 const mocks = vi.hoisted(() => ({
-  producto: { data: null },
-  resenas: { data: [] },
-  relacionados: { data: [] },
+  producto: null, // lo que devuelve obtenerProducto: el producto, null, o un Error (404 / sin conexión)
+  resenas: [], // lo que devuelve listarResenas: la lista, null, o un thenable/promesa para simular demoras y fallos
+  listarResenas: vi.fn(),
+  relacionados: [], // lo que devuelve listarProductos
+  listarProductos: vi.fn(),
 }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: (tabla) =>
-      tabla === 'resenas'
-        ? { select: () => ({ eq: () => ({ order: () => Promise.resolve(mocks.resenas) }) }) }
-        : {
-            select: () => ({
-              eq: () => ({
-                single: () => Promise.resolve(mocks.producto),
-                neq: () => ({ limit: () => Promise.resolve(mocks.relacionados) }),
-              }),
-            }),
-          },
+vi.mock('../api/productosApi', () => ({
+  obtenerProducto: () => (mocks.producto instanceof Error ? Promise.reject(mocks.producto) : Promise.resolve(mocks.producto)),
+  listarProductos: (...args) => {
+    mocks.listarProductos(...args);
+    return Promise.resolve(mocks.relacionados);
+  },
+}));
+vi.mock('../api/resenasApi', () => ({
+  listarResenas: (...args) => {
+    mocks.listarResenas(...args);
+    return Promise.resolve(mocks.resenas);
   },
 }));
 
@@ -44,9 +44,11 @@ const mouse = {
 function renderDetalle({ producto = mouse, resenas = [], relacionados = [] } = {}) {
   const agregarProducto = vi.fn();
   useCart.mockReturnValue({ agregarProducto });
-  mocks.producto = { data: producto };
-  mocks.resenas = { data: resenas };
-  mocks.relacionados = { data: relacionados };
+  mocks.producto = producto;
+  mocks.resenas = resenas;
+  mocks.listarResenas.mockClear();
+  mocks.relacionados = relacionados;
+  mocks.listarProductos.mockClear();
   const { unmount } = render(
     <MemoryRouter initialEntries={['/productos/1']}>
       <Routes>
@@ -138,6 +140,31 @@ describe('DetalleProducto', () => {
     expect(await screen.findByText('No hay otros productos en esta categoría.')).toBeInTheDocument();
   });
 
+  it('pide a ms-resenas las reseñas del producto por su id', async () => {
+    renderDetalle();
+    await titulo();
+    expect(mocks.listarResenas).toHaveBeenCalledWith(1);
+  });
+
+  it('pide a ms-productos 3 relacionados de la misma categoría, sin el propio producto', async () => {
+    renderDetalle();
+    await titulo();
+    await screen.findByText('No hay otros productos en esta categoría.');
+    expect(mocks.listarProductos).toHaveBeenCalledWith({ categoria: 'perifericos', excluir: 1, limit: 3 });
+  });
+
+  it('si ms-productos responde 404 o no responde muestra "Producto no encontrado."', async () => {
+    renderDetalle({ producto: new Error('No existe el producto') });
+    expect(await screen.findByText('Producto no encontrado.')).toBeInTheDocument();
+  });
+
+  it('si ms-resenas falla la ficha se muestra igual, sin reseñas', async () => {
+    renderDetalle();
+    mocks.resenas = { then: (_resolver, rechazar) => rechazar(new Error('ms-resenas caído')) }; // rechaza solo al consumirse
+    await titulo();
+    expect(await screen.findByText(/aún no tiene reseñas/)).toBeInTheDocument();
+  });
+
   it('si el producto no existe muestra "Producto no encontrado."', async () => {
     renderDetalle({ producto: null });
     expect(await screen.findByText('Producto no encontrado.')).toBeInTheDocument();
@@ -145,8 +172,8 @@ describe('DetalleProducto', () => {
 
   it('las reseñas y relacionados sin datos se tratan como listas vacías', async () => {
     renderDetalle();
-    mocks.resenas = { data: null };
-    mocks.relacionados = { data: null };
+    mocks.resenas = null;
+    mocks.relacionados = null;
     await titulo();
     expect(await screen.findByText(/aún no tiene reseñas/)).toBeInTheDocument();
     expect(await screen.findByText('No hay otros productos en esta categoría.')).toBeInTheDocument();
@@ -178,7 +205,7 @@ describe('DetalleProducto', () => {
       mocks.resenas = new Promise((resolver) => { liberarResenas = resolver; });
       await tick(); // el producto ya llegó; las reseñas siguen pendientes
       unmount();
-      liberarResenas({ data: [] });
+      liberarResenas([]);
       await tick();
       expect(screen.queryByText('Cargando producto...')).not.toBeInTheDocument();
     });
@@ -189,7 +216,7 @@ describe('DetalleProducto', () => {
       mocks.relacionados = new Promise((resolver) => { liberarRelacionados = resolver; });
       await tick(); // producto y reseñas ya llegaron; los relacionados siguen pendientes
       unmount();
-      liberarRelacionados({ data: [] });
+      liberarRelacionados([]);
       await tick();
       expect(screen.queryByText('Cargando producto...')).not.toBeInTheDocument();
     });

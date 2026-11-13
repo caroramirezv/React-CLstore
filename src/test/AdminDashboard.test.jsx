@@ -18,18 +18,18 @@ vi.mock('recharts', () => ({
   CartesianGrid: () => null,
 }));
 
-// La vista consulta ordenes (con eq), productos y perfiles (solo cuenta).
-const mocks = vi.hoisted(() => ({ ordenes: [], productos: [], usuarios: 0 }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: (tabla) => ({
-      select: () => {
-        if (tabla === 'ordenes') return { eq: () => Promise.resolve({ data: mocks.ordenes }) };
-        if (tabla === 'productos') return Promise.resolve({ data: mocks.productos });
-        return Promise.resolve({ count: mocks.usuarios });
-      },
-    }),
+// Todo viene de microservicios: productos (ms-productos), órdenes exitosas (ms-ordenes) y usuarios (ms-usuarios).
+// "usuarios" es un número: el mock devuelve esa cantidad de usuarios.
+const mocks = vi.hoisted(() => ({ ordenes: [], productos: [], usuarios: 0, filtrosOrdenes: null }));
+vi.mock('../api/productosApi', () => ({ listarProductos: () => Promise.resolve(mocks.productos) }));
+vi.mock('../api/ordenesApi', () => ({
+  listarOrdenes: (filtros) => {
+    mocks.filtrosOrdenes = filtros;
+    return Promise.resolve(mocks.ordenes);
   },
+}));
+vi.mock('../api/usuariosApi', () => ({
+  listarUsuarios: () => Promise.resolve(Array.from({ length: mocks.usuarios }, (_, i) => ({ id: `u${i}` }))),
 }));
 
 function renderDashboard({ ordenes, productos, usuarios = 4 } = {}) {
@@ -93,6 +93,24 @@ describe('AdminDashboard', () => {
     expect(await screen.findByText('$0')).toBeInTheDocument();
     expect(screen.getByText('0 órdenes pagadas')).toBeInTheDocument();
     expect(screen.getByText('0 unidades en inventario')).toBeInTheDocument();
+  });
+
+  it('si ms-productos falla muestra el dashboard con los productos en cero', async () => {
+    // reemplaza la lectura de productos por un rechazo solo para este render
+    const original = mocks.productos;
+    mocks.productos = { then: (_resolver, rechazar) => rechazar(new Error('sin conexión')) };
+    mocks.ordenes = [{ total: 10000, estado: 'exitosa' }];
+    mocks.usuarios = 2;
+    render(<AdminDashboard />);
+    expect(await screen.findByText('$10.000')).toBeInTheDocument();
+    expect(screen.getByText('0 unidades en inventario')).toBeInTheDocument();
+    mocks.productos = original;
+  });
+
+  it('pide a ms-ordenes solo las órdenes exitosas', async () => {
+    renderDashboard();
+    await screen.findByText('$15.000');
+    expect(mocks.filtrosOrdenes).toEqual({ estado: 'exitosa' });
   });
 
   it('tolera respuestas vacías y montos o stock nulos', async () => {

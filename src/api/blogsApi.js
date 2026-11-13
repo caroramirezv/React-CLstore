@@ -3,6 +3,7 @@ import { API_URLS, peticion } from './http';
 const BASE = API_URLS.blogs;
 const RUTA = '/api/blogs';
 
+/** Más recientes primero. */
 export const listarBlogs = () => peticion(BASE, RUTA);
 
 export const obtenerBlog = (id) => peticion(BASE, `${RUTA}/${encodeURIComponent(id)}`);

@@ -4,16 +4,9 @@ import ResumenCompra from '../pages/ResumenCompra';
 
 vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));
 
-// Solo se usa al recargar la página: busca la orden y sus items.
-const mocks = vi.hoisted(() => ({ orden: { data: null }, items: { data: [] } }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: (tabla) =>
-      tabla === 'ordenes'
-        ? { select: () => ({ eq: () => ({ single: () => Promise.resolve(mocks.orden) }) }) }
-        : { select: () => ({ eq: () => Promise.resolve(mocks.items) }) },
-  },
-}));
+// Solo se usa al recargar la página: pide la orden (con sus items) a ms-ordenes.
+const mocks = vi.hoisted(() => ({ obtenerOrden: vi.fn() }));
+vi.mock('../api/ordenesApi', () => ({ obtenerOrden: (...args) => mocks.obtenerOrden(...args) }));
 
 import { useAuth } from '../context/AuthContext';
 
@@ -47,6 +40,10 @@ function renderResumen({ ruta = '/resumen-compra', state, usuario = { id: 'u1' }
 }
 
 describe('ResumenCompra', () => {
+  beforeEach(() => {
+    mocks.obtenerOrden.mockReset();
+  });
+
   describe('con los datos que llegan desde el checkout', () => {
     it('compra exitosa: muestra pedido, productos, total y datos de envío', () => {
       renderResumen({ ruta: '/resumen-compra/ord-1', state: compraExitosa });
@@ -86,44 +83,44 @@ describe('ResumenCompra', () => {
       expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute('href', '/');
     });
 
-    it('con sesión recupera la orden exitosa desde Supabase', async () => {
-      mocks.orden = {
-        data: { id: 'ord-9', estado: 'exitosa', total: 30000, nombre_comprador: 'Luis', apellidos_comprador: 'Díaz',
-          correo_comprador: 'luis@gmail.com', region: 'Tarapacá', comuna: 'Iquique', direccion: 'Prat 10' },
-      };
-      mocks.items = { data: [{ nombre_producto: 'Teclado', cantidad: 1, precio_unitario: 30000 }] };
+    it('con sesión recupera la orden exitosa desde ms-ordenes', async () => {
+      mocks.obtenerOrden.mockResolvedValue({
+        id: 'ord-9', estado: 'exitosa', total: 30000, nombre_comprador: 'Luis', apellidos_comprador: 'Díaz',
+        correo_comprador: 'luis@gmail.com', region: 'Tarapacá', comuna: 'Iquique', direccion: 'Prat 10',
+        items: [{ nombre_producto: 'Teclado', cantidad: 1, precio_unitario: 30000 }],
+      });
       renderResumen({ ruta: '/resumen-compra/ord-9' });
       expect(screen.getByText('Cargando resumen...')).toBeInTheDocument();
       expect(await screen.findByText(/Pago exitoso/)).toBeInTheDocument();
       expect(screen.getByText('Número de pedido: #ord-9')).toBeInTheDocument();
       expect(screen.getByText('Teclado')).toBeInTheDocument();
       expect(screen.getByText('Luis Díaz')).toBeInTheDocument();
+      expect(mocks.obtenerOrden).toHaveBeenCalledWith('ord-9');
     });
 
     it('con sesión recupera una orden fallida y la muestra como fallida', async () => {
-      mocks.orden = { data: { id: 'ord-10', estado: 'fallida', total: 5000 } };
-      mocks.items = { data: [] };
+      mocks.obtenerOrden.mockResolvedValue({ id: 'ord-10', estado: 'fallida', total: 5000, items: [] });
       renderResumen({ ruta: '/resumen-compra/ord-10' });
       expect(await screen.findByText(/No se pudo procesar el pago/)).toBeInTheDocument();
     });
 
-    it('si la orden no existe avisa que no hay información', async () => {
-      mocks.orden = { data: null };
+    it('si la orden no existe o no es del usuario (404 / 403) avisa que no hay información', async () => {
+      mocks.obtenerOrden.mockRejectedValue(new Error('No tienes acceso a esta orden.'));
       renderResumen({ ruta: '/resumen-compra/ord-404' });
       expect(await screen.findByText(/No encontramos información de esta compra/)).toBeInTheDocument();
     });
 
     it('sin sesión no consulta la orden y avisa que no hay información', async () => {
-      mocks.orden = { data: { id: 'ord-9', estado: 'exitosa', total: 1 } };
+      mocks.obtenerOrden.mockResolvedValue({ id: 'ord-9', estado: 'exitosa', total: 1, items: [] });
       renderResumen({ ruta: '/resumen-compra/ord-9', usuario: null });
       expect(await screen.findByText(/No encontramos información de esta compra/)).toBeInTheDocument();
+      expect(mocks.obtenerOrden).not.toHaveBeenCalled();
     });
   });
 
   describe('datos incompletos', () => {
     it('al recuperar una orden sin lista de items muestra la compra sin productos', async () => {
-      mocks.orden = { data: { id: 'ord-11', estado: 'exitosa', total: 1000, nombre_comprador: 'Eva', apellidos_comprador: 'Rojas' } };
-      mocks.items = { data: null };
+      mocks.obtenerOrden.mockResolvedValue({ id: 'ord-11', estado: 'exitosa', total: 1000, nombre_comprador: 'Eva', apellidos_comprador: 'Rojas' });
       renderResumen({ ruta: '/resumen-compra/ord-11' });
       expect(await screen.findByText(/Pago exitoso/)).toBeInTheDocument();
       expect(screen.getByText('Número de pedido: #ord-11')).toBeInTheDocument();

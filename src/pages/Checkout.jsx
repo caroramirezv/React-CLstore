@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { crearOrden } from '../api/ordenesApi';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { REGIONES_Y_COMUNAS } from '../data/regionesYComunas';
@@ -50,58 +50,34 @@ export default function Checkout() {
 
     const itemsParaOrden = items.map((it) => ({ producto_id: it.producto_id, cantidad: it.cantidad }));
 
-    const { data, error } = await supabase.rpc('crear_orden', {
-      p_usuario_id: usuario?.id || null,
-      p_nombre: nombre,
-      p_apellidos: apellidos,
-      p_correo: correo,
-      p_telefono: telefono || null,
-      p_region: region,
-      p_comuna: comuna,
-      p_direccion: direccion,
-      p_items: itemsParaOrden,
-    });
+    let data;
+    try {
+      // ms-ordenes toma los precios y el stock de ms-productos; aquí solo se envían comprador y cantidades.
+      data = await crearOrden({
+        nombre,
+        apellidos,
+        correo,
+        telefono: telefono || null,
+        region,
+        comuna,
+        direccion,
+        items: itemsParaOrden,
+      });
+    } catch (error) {
+      setProcesando(false);
+      // Si la compra fue rechazada (sin stock, producto retirado) ms-ordenes la deja registrada como fallida
+      // y devuelve su id en error.datos.orden_id.
+      navigate('/resumen-compra', {
+        state: {
+          exito: false,
+          motivo: error.message,
+          ordenId: error.datos?.orden_id ?? null,
+        },
+      });
+      return;
+    }
 
     setProcesando(false);
-
-
-
-if (error) {
-  const { data: ordenFallida, error: errorRegistro } =
-    await supabase.rpc('registrar_orden_fallida', {
-      p_usuario_id: usuario?.id || null,
-      p_nombre: nombre,
-      p_apellidos: apellidos,
-      p_correo: correo,
-      p_telefono: telefono || null,
-      p_region: region,
-      p_comuna: comuna,
-      p_direccion: direccion,
-      p_total: Number(total) || 0,
-    });
-
-  if (errorRegistro) {
-    console.error(
-      'Error guardando la orden fallida:',
-      errorRegistro
-    );
-  }
-
-  setProcesando(false);
-
-  navigate('/resumen-compra', {
-    state: {
-      exito: false,
-      motivo: error.message,
-      ordenId: ordenFallida || null,
-    },
-  });
-
-  return;
-}
-
-setProcesando(false);
-
 
     const itemsResumen = items.map((it) => {
       const { precioFinal } = calcularPrecioFinal(it.productos);

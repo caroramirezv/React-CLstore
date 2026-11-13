@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import Swal from 'sweetalert2';
-import { supabase } from '../lib/supabaseClient';
+import {
+  listarCarrito,
+  agregarAlCarrito,
+  cambiarCantidadCarrito,
+  quitarDelCarrito,
+  vaciarCarritoRemoto,
+} from '../api/carritoApi';
 import { useAuth } from './AuthContext';
 import { calcularPrecioFinal } from '../lib/validaciones';
 
@@ -11,41 +17,39 @@ export function CartProvider({ children }) {
   const [items, setItems] = useState([]); 
   const [cargando, setCargando] = useState(false);
 
-  const cargarCarritoSupabase = useCallback(async () => {
+  // Con sesión, el carrito vive en ms-carrito; sin sesión (invitado) solo en memoria.
+  const cargarCarritoRemoto = useCallback(async () => {
     if (!usuario) return;
     setCargando(true);
-    const { data, error } = await supabase
-      .from('carrito_items')
-      .select('id, producto_id, cantidad, productos ( id, nombre, precio, imagen, descuento_porcentaje, stock )')
-      .eq('usuario_id', usuario.id);
-    if (!error) setItems(data || []);
-    setCargando(false);
+    try {
+      setItems((await listarCarrito()) || []);
+    } catch {
+      // se conserva lo que haya en pantalla
+    } finally {
+      setCargando(false);
+    }
   }, [usuario]);
 
   useEffect(() => {
     if (usuario) {
-      cargarCarritoSupabase();
+      cargarCarritoRemoto();
     } else {
       setItems([]);
     }
-  }, [usuario, cargarCarritoSupabase]);
+  }, [usuario, cargarCarritoRemoto]);
+
+  function avisarError(titulo, error) {
+    Swal.fire(titulo, error?.message || 'Ocurrió un error inesperado.', 'error');
+  }
 
   async function agregarProducto(producto) {
     if (usuario) {
-      const existente = items.find((it) => it.producto_id === producto.id);
-      if (existente) {
-        await supabase
-          .from('carrito_items')
-          .update({ cantidad: existente.cantidad + 1 })
-          .eq('id', existente.id);
-      } else {
-        await supabase.from('carrito_items').insert({
-          usuario_id: usuario.id,
-          producto_id: producto.id,
-          cantidad: 1,
-        });
+      try {
+        setItems(await agregarAlCarrito(producto.id, 1));
+      } catch (error) {
+        avisarError('No se pudo añadir el producto', error);
+        return;
       }
-      await cargarCarritoSupabase();
     } else {
       setItems((prev) => {
         const existente = prev.find((it) => it.producto_id === producto.id);
@@ -89,8 +93,11 @@ export function CartProvider({ children }) {
     }
 
     if (usuario) {
-      await supabase.from('carrito_items').update({ cantidad: nuevaCantidad }).eq('id', item.id);
-      await cargarCarritoSupabase();
+      try {
+        setItems(await cambiarCantidadCarrito(productoId, nuevaCantidad));
+      } catch (error) {
+        avisarError('No se pudo cambiar la cantidad', error);
+      }
     } else {
       setItems((prev) =>
         prev.map((it) => (it.producto_id === productoId ? { ...it, cantidad: nuevaCantidad } : it))
@@ -100,9 +107,11 @@ export function CartProvider({ children }) {
 
   async function eliminarProducto(productoId) {
     if (usuario) {
-      const item = items.find((it) => it.producto_id === productoId);
-      if (item) await supabase.from('carrito_items').delete().eq('id', item.id);
-      await cargarCarritoSupabase();
+      try {
+        setItems(await quitarDelCarrito(productoId));
+      } catch (error) {
+        avisarError('No se pudo quitar el producto', error);
+      }
     } else {
       setItems((prev) => prev.filter((it) => it.producto_id !== productoId));
     }
@@ -110,7 +119,12 @@ export function CartProvider({ children }) {
 
   async function vaciarCarrito() {
     if (usuario) {
-      await supabase.from('carrito_items').delete().eq('usuario_id', usuario.id);
+      try {
+        await vaciarCarritoRemoto();
+      } catch (error) {
+        avisarError('No se pudo vaciar el carrito', error);
+        return;
+      }
     }
     setItems([]);
   }

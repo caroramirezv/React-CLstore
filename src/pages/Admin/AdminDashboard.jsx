@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { supabase } from '../../lib/supabaseClient'; // órdenes y perfiles (aún en Supabase)
 import { listarProductos } from '../../api/productosApi';
+import { listarOrdenes } from '../../api/ordenesApi';
+import { listarUsuarios } from '../../api/usuariosApi';
 import { aResultado } from '../../api/http';
 import { formatoCLP } from '../../lib/validaciones';
 
@@ -26,9 +27,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function cargar() {
       const [ordenesRes, productosRes, usuariosRes] = await Promise.all([
-        supabase.from('ordenes').select('total, estado').eq('estado', 'exitosa'),
+        aResultado(listarOrdenes({ estado: 'exitosa' })),
         aResultado(listarProductos()),
-        supabase.from('perfiles').select('id', { count: 'exact', head: true }),
+        aResultado(listarUsuarios()),
       ]);
 
       const ordenes = ordenesRes.data || [];
@@ -54,7 +55,7 @@ export default function AdminDashboard() {
         cantidadOrdenes: ordenes.length,
         cantidadProductos: productos.length,
         unidadesEnStock,
-        cantidadUsuarios: usuariosRes.count || 0,
+        cantidadUsuarios: (usuariosRes.data || []).length,
         productosStockCritico,
         ventasPorCategoria,
       });

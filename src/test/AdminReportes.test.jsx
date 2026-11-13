@@ -12,16 +12,24 @@ vi.mock('recharts', () => ({
   CartesianGrid: () => null,
 }));
 
-// La vista pide 5 tablas a la vez; solo "ordenes" usa .order().
-const mocks = vi.hoisted(() => ({ tablas: {} }));
-vi.mock('../lib/supabaseClient', () => ({
-  supabase: {
-    from: (tabla) => {
-      const resultado = Promise.resolve(mocks.tablas[tabla]);
-      return { select: () => (tabla === 'ordenes' ? { order: () => resultado } : resultado) };
-    },
-  },
+// Todas las tablas vienen de microservicios. Cada una se configura como { data, error }:
+// un "error" (o una excepción) se convierte en el rechazo que lanzaría la capa api.
+const mocks = vi.hoisted(() => {
+  const m = { tablas: {} };
+  m.desdeMicroservicio = (tabla) =>
+    Promise.resolve(m.tablas[tabla]).then(({ data, error }) => {
+      if (error) throw error;
+      return data;
+    });
+  return m;
+});
+vi.mock('../api/productosApi', () => ({ listarProductos: () => mocks.desdeMicroservicio('productos') }));
+vi.mock('../api/blogsApi', () => ({ listarBlogs: () => mocks.desdeMicroservicio('blogs') }));
+vi.mock('../api/ordenesApi', () => ({
+  listarOrdenes: () => mocks.desdeMicroservicio('ordenes'),
+  listarItemsOrdenes: () => mocks.desdeMicroservicio('orden_items'),
 }));
+vi.mock('../api/usuariosApi', () => ({ listarUsuarios: () => mocks.desdeMicroservicio('perfiles') }));
 
 function datosBase() {
   return {
@@ -157,6 +165,16 @@ describe('AdminReportes', () => {
     expect(screen.getByText('#o1')).toBeInTheDocument();
   });
 
+  it('si ms-blogs falla avisa, no cuenta blogs y sigue mostrando el resto', async () => {
+    const tablas = datosBase();
+    tablas.blogs = { data: null, error: { message: 'ms-blogs no responde' } };
+    await renderReportes(tablas);
+    expect(screen.getByText(/blogs: ms-blogs no responde/)).toBeInTheDocument();
+    expect(screen.getByText('0 blogs publicados')).toBeInTheDocument();
+    expect(screen.getByText('#o1')).toBeInTheDocument();
+    expect(valorDe('Productos en catálogo')).toHaveTextContent('2');
+  });
+
   it('el tooltip del gráfico muestra el monto en pesos', async () => {
     await renderReportes();
     expect(screen.getByText('$1.500')).toBeInTheDocument();
@@ -195,19 +213,19 @@ describe('AdminReportes', () => {
     expect(screen.getByText('0 unidades en inventario')).toBeInTheDocument();
   });
 
-  it('si una consulta lanza una excepción muestra su mensaje', async () => {
+  it('si un microservicio no responde avisa cuál y sigue mostrando el resto', async () => {
     const tablas = datosBase();
-    tablas.blogs = { then: (_resolver, rechazar) => rechazar(new Error('sin conexión')) };
+    tablas.ordenes = { then: (_resolver, rechazar) => rechazar(new Error('sin conexión')) };
     await renderReportes(tablas);
-    expect(screen.getByText('sin conexión')).toBeInTheDocument();
-    expect(console.error).toHaveBeenCalledWith('Error al cargar reportes:', expect.any(Error));
+    expect(screen.getByText(/órdenes: sin conexión/)).toBeInTheDocument();
+    expect(screen.getByText('0 blogs publicados')).not.toBeNull();
   });
 
-  it('si la excepción no trae mensaje usa uno genérico', async () => {
+  it('si el error no trae mensaje usa uno genérico', async () => {
     const tablas = datosBase();
-    tablas.blogs = { then: (_resolver, rechazar) => rechazar({}) };
+    tablas.ordenes = { then: (_resolver, rechazar) => rechazar({}) };
     await renderReportes(tablas);
-    expect(screen.getByText('Error inesperado al cargar reportes.')).toBeInTheDocument();
+    expect(screen.getByText(/órdenes: error desconocido/)).toBeInTheDocument();
   });
 
   it('suma las unidades de un producto que aparece en varias líneas de la misma orden', async () => {

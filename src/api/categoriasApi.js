@@ -3,6 +3,7 @@ import { API_URLS, peticion } from './http';
 const BASE = API_URLS.categorias;
 const RUTA = '/api/categorias';
 
+/** Devuelve [{ valor, etiqueta, icono }] ordenadas por etiqueta. */
 export const listarCategorias = () => peticion(BASE, RUTA);
 
 /** Al crear solo se envía { etiqueta, icono? }: el "valor" (slug) lo genera el servicio. */

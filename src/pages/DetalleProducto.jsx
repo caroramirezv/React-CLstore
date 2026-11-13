@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient'; 
 import { listarProductos, obtenerProducto } from '../api/productosApi';
+import { listarResenas } from '../api/resenasApi';
 import { formatoCLP, calcularPrecioFinal } from '../lib/validaciones';
 import { useCart } from '../context/CartContext';
 import ProductCard from '../components/ProductCard';
@@ -19,19 +19,15 @@ export default function DetalleProducto() {
     setCargando(true);
 
     async function cargar() {
-      const prod = await obtenerProducto(id).catch(() => null);
+      const prod = await obtenerProducto(id).catch(() => null); // 404 o sin conexión
       if (!activo) return;
       setProducto(prod || null);
 
       if (prod) {
+        // Si ms-resenas no responde, la ficha se muestra igual sin reseñas.
         let rese = [];
         try {
-          const resultado = await supabase
-            .from('resenas')
-            .select('*')
-            .eq('producto_id', prod.id)
-            .order('fecha', { ascending: false });
-          rese = resultado.data || [];
+          rese = (await listarResenas(prod.id)) || [];
         } catch {
           rese = [];
         }
