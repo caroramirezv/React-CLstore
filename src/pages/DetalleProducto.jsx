@@ -19,12 +19,11 @@ export default function DetalleProducto() {
     setCargando(true);
 
     async function cargar() {
-      const prod = await obtenerProducto(id).catch(() => null); // 404 o sin conexión
+      const prod = await obtenerProducto(id).catch(() => null); 
       if (!activo) return;
       setProducto(prod || null);
 
       if (prod) {
-        // Si ms-resenas no responde, la ficha se muestra igual sin reseñas.
         let rese = [];
         try {
           rese = (await listarResenas(prod.id)) || [];

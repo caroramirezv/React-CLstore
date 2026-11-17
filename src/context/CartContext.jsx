@@ -17,7 +17,6 @@ export function CartProvider({ children }) {
   const [items, setItems] = useState([]); 
   const [cargando, setCargando] = useState(false);
 
-  // Con sesión, el carrito vive en ms-carrito; sin sesión (invitado) solo en memoria.
   const cargarCarritoRemoto = useCallback(async () => {
     if (!usuario) return;
     setCargando(true);

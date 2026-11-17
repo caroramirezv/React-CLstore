@@ -52,7 +52,6 @@ export default function Checkout() {
 
     let data;
     try {
-      // ms-ordenes toma los precios y el stock de ms-productos; aquí solo se envían comprador y cantidades.
       data = await crearOrden({
         nombre,
         apellidos,
@@ -65,8 +64,6 @@ export default function Checkout() {
       });
     } catch (error) {
       setProcesando(false);
-      // Si la compra fue rechazada (sin stock, producto retirado) ms-ordenes la deja registrada como fallida
-      // y devuelve su id en error.datos.orden_id.
       navigate('/resumen-compra', {
         state: {
           exito: false,

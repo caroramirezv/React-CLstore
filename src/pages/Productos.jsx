@@ -34,7 +34,7 @@ export default function Productos() {
           ...categorias.map((c) => ({ valor: c.valor, etiqueta: c.etiqueta })),
         ]);
       })
-      .catch(() => {}); // sin ms-categoria se mantienen los filtros por defecto
+      .catch(() => {}); 
   }, []);
 
   const filtrados = useMemo(() => {

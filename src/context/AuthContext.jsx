@@ -5,10 +5,6 @@ import { registrarManejadorSesionExpirada } from '../api/http';
 
 const AuthContext = createContext(null);
 
-/**
- * Sesión basada en ms-usuarios: el JWT se guarda en localStorage (src/api/token.js) y el perfil se lee de
- * GET /api/usuarios/me. Expone la misma interfaz que cuando se usaba Supabase Auth.
- */
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => obtenerToken());
   const [perfil, setPerfil] = useState(null);
