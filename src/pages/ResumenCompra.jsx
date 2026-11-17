@@ -22,7 +22,7 @@ export default function ResumenCompra() {
       
       let orden;
       try {
-        orden = await obtenerOrden(ordenId); 
+        orden = await obtenerOrden(ordenId); // incluye las líneas en orden.items
       } catch {
         setCargando(false);
         return;

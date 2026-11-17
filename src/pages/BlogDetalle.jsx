@@ -10,7 +10,7 @@ export default function BlogDetalle() {
   useEffect(() => {
     setCargando(true);
     obtenerBlog(id)
-      .catch(() => null) 
+      .catch(() => null) // 404 o sin conexión: se muestra "Artículo no encontrado."
       .then((data) => {
         setBlog(data || null);
         setCargando(false);
