@@ -1,5 +1,27 @@
 /* Nosotros */
 body:has(#carouselNosotros) .content-body { max-width: 1180px; }
 #carouselNosotros { border: 1px solid var(--cl-border); }
-body:has(#carouselNosotros) .content-body p { font-size: 1.08rem; line-height: 1.9; color: #475569; }
-body:has(#carouselNosotros) h1 { color: #172033; letter-spacing: -.045em; }
+
+body:has(#carouselNosotros) h1,
+body:has(#carouselNosotros) h2,
+body:has(#carouselNosotros) h3,
+body:has(#carouselNosotros) h4 {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+  letter-spacing: -.035em;
+}
+
+/* Visibilidad forzada para párrafos y la dirección ("Encuéntranos en:") */
+body:has(#carouselNosotros) .content-body p,
+body:has(#carouselNosotros) .content-body address,
+body:has(#carouselNosotros) .content-body span:not(.badge):not(.btn *),
+body:has(#carouselNosotros) .content-body div:not(.carousel-caption):not(.btn) {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  opacity: 1 !important;
+}
+
+body:has(#carouselNosotros) .content-body p {
+  font-size: 1.08rem;
+  line-height: 1.9;
+}

@@ -2,3 +2,59 @@
 .content-body section .table-responsive { border-radius: 14px; }
 .content-body section .table { --bs-table-bg: #fff; --bs-table-color: #334155; --bs-table-hover-bg: #f5f8fc; margin-bottom: 0; }
 .content-body section .table thead th { color: #fff; background: #172033; font-size: .76rem; letter-spacing: .05em; text-transform: uppercase; }
+
+/* ==========================================================
+   CORRECCIÓN DE BOTONES EN HISTORIAL DE ÓRDENES
+   ========================================================== */
+
+/* 1. Liberar ancho y alto fijo heredado para todos los botones de la tabla */
+.content-body section .table td button,
+.content-body section .table td .btn {
+  width: auto !important;
+  min-width: max-content !important;
+  height: auto !important;
+  padding: 0.42rem 1rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  border-radius: 50px !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  transition: all 0.15s ease-in-out;
+}
+
+/* 2. Botón "Ver boleta" / "Ocultar" */
+.content-body section .table td .btn-outline-secondary {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+}
+
+.content-body section .table td .btn-outline-secondary:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* 3. Botón "Imprimir / Guardar PDF" */
+.content-body section .table td .btn-primary {
+  background-color: #2563eb !important;
+  border: 1px solid #2563eb !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25) !important;
+}
+
+.content-body section .table td .btn-primary i {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.content-body section .table td .btn-primary:hover {
+  background-color: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
