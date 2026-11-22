@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
 import {
   listarProductos,
@@ -22,6 +21,7 @@ export default function AdminProductos() {
   const [esEdicion, setEsEdicion] = useState(false);
   const [imagenArchivo, setImagenArchivo] = useState(null);
   const [imagenPreview, setImagenPreview] = useState('');
+  const [modalAbierto, setModalAbierto] = useState(false);
 
   async function cargarProductos() {
     try {
@@ -44,12 +44,22 @@ export default function AdminProductos() {
     cargarCategorias();
   }, []);
 
+  useEffect(() => {
+    if (modalAbierto) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [modalAbierto]);
+
   function abrirCreacion() {
     cargarCategorias();
     setForm(formVacio);
     setImagenArchivo(null);
     setImagenPreview('');
     setEsEdicion(false);
+    setModalAbierto(true);
   }
 
   function abrirEdicion(p) {
@@ -69,10 +79,11 @@ export default function AdminProductos() {
     setImagenArchivo(null);
     setImagenPreview(p.imagen || '');
     setEsEdicion(true);
+    setModalAbierto(true);
   }
 
   function cerrarModal() {
-    Modal.getInstance(document.getElementById('modalProducto'))?.hide();
+    setModalAbierto(false);
     setImagenArchivo(null);
     setImagenPreview('');
   }
@@ -118,8 +129,6 @@ export default function AdminProductos() {
       return;
     }
 
-
-
     let imagenFinal = form.imagen || '/img/Logo.png';
 
     if (imagenArchivo) {
@@ -158,10 +167,7 @@ export default function AdminProductos() {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: esEdicion ? 'Producto actualizado' : 'Producto creado', showConfirmButton: false, timer: 1500 });
   }
 
-
-
   async function eliminar(id) {
-
     const resultado = await Swal.fire({
       title: '¿Eliminar producto?', text: 'Esta acción no se puede deshacer.', icon: 'warning',
       showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar', confirmButtonColor: '#800000',
@@ -182,7 +188,7 @@ export default function AdminProductos() {
     <section className="p-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="fw-bold m-0"><i className="fa-solid fa-boxes-stacked me-2"></i>Mantenedor de Productos</h4>
-        <button className="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#modalProducto" onClick={abrirCreacion}>
+        <button className="btn btn-primary rounded-pill px-4" onClick={abrirCreacion}>
           <i className="fa-solid fa-plus me-2"></i>Nuevo Producto
         </button>
       </div>
@@ -226,7 +232,7 @@ export default function AdminProductos() {
                       )}
                     </td>
                     <td className="text-end pe-4">
-                      <button className="btn btn-sm btn-outline-primary rounded-pill me-1" data-bs-toggle="modal" data-bs-target="#modalProducto" onClick={() => abrirEdicion(p)}>
+                      <button className="btn btn-sm btn-outline-primary rounded-pill me-1" onClick={() => abrirEdicion(p)}>
                         <i className="fa-solid fa-pen"></i>
                       </button>
                       <button className="btn btn-sm btn-outline-danger rounded-pill" onClick={() => eliminar(p.id)}>
@@ -241,12 +247,21 @@ export default function AdminProductos() {
         </div>
       </div>
 
-      <div className="modal fade" id="modalProducto" tabIndex={-1} aria-hidden="true">
+      <div
+        className={`modal fade ${modalAbierto ? 'show' : ''}`}
+        id="modalProducto"
+        tabIndex={-1}
+        style={{ display: modalAbierto ? 'block' : 'none' }}
+        aria-hidden={!modalAbierto}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) cerrarModal();
+        }}
+      >
         <div className="modal-dialog modal-lg">
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title fw-bold">{esEdicion ? 'Editar Producto' : 'Nuevo Producto'}</h5>
-              <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
+              <button type="button" className="btn-close" onClick={cerrarModal}></button>
             </div>
 
             <form onSubmit={guardar}>
@@ -322,13 +337,15 @@ export default function AdminProductos() {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" className="btn btn-secondary rounded-pill" onClick={cerrarModal}>Cancelar</button>
                 <button type="submit" className="btn btn-primary rounded-pill">Guardar Producto</button>
               </div>
             </form>
           </div>
         </div>
       </div>
+
+      {modalAbierto && <div className="modal-backdrop fade show"></div>}
     </section>
   );
 }

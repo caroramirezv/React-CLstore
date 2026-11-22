@@ -10,3 +10,7 @@
   -webkit-text-fill-color: #ffffff !important;
   font-weight: 600 !important;
 }
+
+.swal2-container {
+  z-index: 1080 !important;
+}
