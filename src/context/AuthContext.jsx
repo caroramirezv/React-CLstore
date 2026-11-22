@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { login, registro, obtenerPerfil } from '../api/usuariosApi';
 import { obtenerToken, guardarToken, borrarToken } from '../api/token';
 import { registrarManejadorSesionExpirada } from '../api/http';
+import { login, loginGoogle, registro, obtenerPerfil } from '../api/usuariosApi';
 
 const AuthContext = createContext(null);
 
@@ -53,6 +53,14 @@ export function AuthProvider({ children }) {
       return { error };
     }
   }
+  async function signInGoogle(credential) {
+  try {
+    iniciarSesion(await loginGoogle(credential));
+    return { error: null };
+  } catch (error) {
+    return { error };
+  }
+}
 
   async function signUp({ correo, password, run, nombre, apellidos, fechaNacimiento, region, comuna, direccion }) {
     try {
@@ -95,6 +103,7 @@ export function AuthProvider({ children }) {
     perfil,
     loading,
     signIn,
+    signInGoogle,
     signUp,
     signOut,
     refrescarPerfil,

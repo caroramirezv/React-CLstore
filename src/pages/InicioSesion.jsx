@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 import { validarDominioCorreo } from '../lib/validaciones';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function InicioSesion() {
-  const { signIn } = useAuth();
+  const { signIn, signInGoogle } = useAuth();
+  const googleHabilitado = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const navigate = useNavigate();
   const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
@@ -33,6 +35,21 @@ export default function InicioSesion() {
     }
     navigate('/');
   }
+  async function iniciarConGoogle(respuesta) {
+  if (!respuesta.credential) {
+    Swal.fire('Error', 'Google no entregó las credenciales.', 'error');
+    return;
+  }
+  setEnviando(true);
+  const { error } = await signInGoogle(respuesta.credential);
+  setEnviando(false);
+
+  if (error) {
+    Swal.fire('No se pudo iniciar sesión con Google', error.message, 'error');
+    return;
+  }
+  navigate('/');
+}
 
   return (
     <div className="container my-5">
@@ -74,6 +91,18 @@ export default function InicioSesion() {
               />
               <small className="text-white-50">Entre 6 y 10 caracteres.</small>
             </div>
+            {googleHabilitado && (
+            <div className="d-flex flex-column align-items-center mt-4">
+              <span className="text-muted mb-2">o</span>
+              <GoogleLogin
+                onSuccess={iniciarConGoogle}
+                onError={() => Swal.fire('Error', 'No se pudo conectar con Google.', 'error')}
+                theme="filled_black"
+                text="signin_with"
+                shape="rectangular"
+              />
+            </div>
+          )}
 
             <div className="mt-4">
               <button
