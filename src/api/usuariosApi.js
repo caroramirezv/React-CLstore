@@ -5,6 +5,10 @@ const BASE = API_URLS.usuarios;
 /** Inicia sesión. Devuelve { token, usuario }. Lanza ApiError(401) si las credenciales no son correctas. */
 export const login = (correo, password) => peticion(BASE, '/api/auth/login', { method: 'POST', body: { correo, password } });
 
+/** Inicia sesión con Google. Recibe el ID token (credential) y devuelve { token, usuario }. */
+export const loginGoogle = (credential) =>
+  peticion(BASE, '/api/auth/google', { method: 'POST', body: { credential } }); // <- ajusta ruta/campo si difiere
+
 /** Registro público (siempre crea un Cliente). Devuelve { token, usuario } con la sesión ya iniciada. */
 export const registro = (datos) => peticion(BASE, '/api/auth/registro', { method: 'POST', body: datos });
 
