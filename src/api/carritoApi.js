@@ -3,9 +3,6 @@ import { API_URLS, peticion } from './http';
 const BASE = API_URLS.carrito;
 const RUTA = '/api/carrito';
 
-// Todas requieren sesión. Las que modifican devuelven el carrito ya actualizado:
-// [{ id, producto_id, cantidad, productos: { id, nombre, precio, imagen, descuento_porcentaje, stock } }]
-
 export const listarCarrito = () => peticion(BASE, RUTA, { auth: true });
 
 export const agregarAlCarrito = (productoId, cantidad = 1) =>

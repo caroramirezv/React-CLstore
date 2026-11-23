@@ -10,7 +10,7 @@ export function obtenerToken() {
   try {
     return localStorage.getItem(CLAVE) || null;
   } catch {
-    return null; // localStorage no disponible (modo privado, tests)
+    return null; 
   }
 }
 
@@ -18,7 +18,6 @@ export function guardarToken(token) {
   try {
     localStorage.setItem(CLAVE, token);
   } catch {
-    // sin almacenamiento: el token no persiste
   }
 }
 
@@ -26,6 +25,5 @@ export function borrarToken() {
   try {
     localStorage.removeItem(CLAVE);
   } catch {
-    // nada que borrar
   }
 }

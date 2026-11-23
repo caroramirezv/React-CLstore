@@ -3,11 +3,6 @@ import { API_URLS, peticion } from './http';
 const BASE = API_URLS.productos;
 const RUTA = '/api/productos';
 
-/**
- * Lista productos. Todos los filtros son opcionales y combinables:
- *   { categoria, q, oferta: true, excluir: id, orden, limit }
- *   orden: 'nombre' | 'creado_asc' | 'creado_desc' | 'descuento_desc'
- */
 export const listarProductos = (filtros = {}) => peticion(BASE, RUTA, { params: filtros });
 
 export const obtenerProducto = (id) => peticion(BASE, `${RUTA}/${encodeURIComponent(id)}`);

@@ -2,7 +2,6 @@ import { obtenerToken, borrarToken } from './token';
 
 const sinBarraFinal = (url) => url.replace(/\/+$/, '');
 
-// URL base de cada microservicio (configurable en .env con las variables VITE_API_*).
 export const API_URLS = {
   productos: sinBarraFinal(import.meta.env.VITE_API_PRODUCTOS_URL || 'http://localhost:8081'),
   categorias: sinBarraFinal(import.meta.env.VITE_API_CATEGORIAS_URL || 'http://localhost:8082'),
@@ -14,19 +13,16 @@ export const API_URLS = {
   contacto: sinBarraFinal(import.meta.env.VITE_API_CONTACTO_URL || 'http://localhost:8088'),
 };
 
-/** Error de una llamada a un microservicio. "message" ya viene listo para mostrarse al usuario. */
 export class ApiError extends Error {
   constructor(message, status = 0, errores = null, datos = null) {
     super(message);
     this.name = 'ApiError';
-    this.status = status; // 0 = sin conexión
-    this.errores = errores; // detalle por campo cuando la validación falla (400)
-    this.datos = datos; // cuerpo completo de la respuesta de error (p. ej. { orden_id } en una compra rechazada)
+    this.status = status; 
+    this.errores = errores; 
+    this.datos = datos; 
   }
 }
 
-// Si un servicio responde 401 a una llamada que llevaba token, la sesión venció o ya no es válida:
-// se borra el token y se avisa al AuthContext (que cierra la sesión en pantalla).
 let alExpirarSesion = null;
 export function registrarManejadorSesionExpirada(manejador) {
   alExpirarSesion = manejador;
@@ -43,23 +39,10 @@ const MENSAJES_POR_ESTADO = {
 };
 
 function mensajeDeError(estado, datos) {
-  // Los microservicios responden RFC 7807: el texto legible viene en "detail".
   if (datos && typeof datos.detail === 'string' && datos.detail) return datos.detail;
   return MENSAJES_POR_ESTADO[estado] || `Error inesperado del servidor (${estado}).`;
 }
 
-/**
- * Llamada HTTP a un microservicio.
- * @param {string} baseUrl  una de API_URLS
- * @param {string} ruta     por ejemplo "/api/productos"
- * @param {object} opciones { method, params, body, formData, auth }
- *   - params:   query string; se omiten los valores vacíos (undefined, null, '')
- *   - body:     objeto que se envía como JSON
- *   - formData: FormData (subida de archivos)
- *   - auth:     true en escrituras: agrega "Authorization: Bearer <token>"
- * @returns el JSON de la respuesta, o null si no trae cuerpo (204).
- * @throws {ApiError}
- */
 export async function peticion(baseUrl, ruta, { method = 'GET', params, body, formData, auth = false } = {}) {
   const origen = typeof window !== 'undefined' ? window.location.origin : undefined;
   const url = new URL(baseUrl + ruta, origen);
@@ -77,7 +60,7 @@ export async function peticion(baseUrl, ruta, { method = 'GET', params, body, fo
 
   let cuerpo;
   if (formData) {
-    cuerpo = formData; // el navegador fija el Content-Type multipart con su boundary
+    cuerpo = formData; 
   } else if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
     cuerpo = JSON.stringify(body);
@@ -110,7 +93,6 @@ export async function peticion(baseUrl, ruta, { method = 'GET', params, body, fo
   return datos;
 }
 
-/** Convierte una promesa en { data, error } (nunca rechaza). Útil donde se tolera un fallo parcial. */
 export function aResultado(promesa) {
   return Promise.resolve(promesa).then(
     (data) => ({ data, error: null }),
