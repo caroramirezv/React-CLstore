@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { listarProductos, obtenerProducto } from '../api/productosApi';
-import { listarResenas } from '../api/resenasApi';
+import { listarResenas, crearResena } from '../api/resenasApi';
 import { formatoCLP, calcularPrecioFinal } from '../lib/validaciones';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/ProductCard';
 
 export default function DetalleProducto() {
   const { id } = useParams();
   const { agregarProducto } = useCart();
+  const { usuario } = useAuth() || {};
   const [producto, setProducto] = useState(null);
   const [resenas, setResenas] = useState([]);
   const [relacionados, setRelacionados] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [calificacion, setCalificacion] = useState(5);
+  const [comentario, setComentario] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [errorResena, setErrorResena] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -42,6 +48,26 @@ export default function DetalleProducto() {
       activo = false;
     };
   }, [id]);
+
+  async function enviarResena(e) {
+    e.preventDefault();
+    const texto = comentario.trim();
+    if (!texto) {
+      setErrorResena('Escribe un comentario antes de enviar.');
+      return;
+    }
+    setErrorResena('');
+    setEnviando(true);
+    try {
+      const nueva = await crearResena({ producto_id: String(producto.id), calificacion, comentario: texto });
+      setResenas((prev) => [nueva, ...prev]);
+      setComentario('');
+      setCalificacion(5);
+    } catch (err) {
+      setErrorResena(err.message || 'No se pudo publicar tu comentario.');
+    }
+    setEnviando(false);
+  }
 
   if (cargando) return <div className="container my-5 text-center">Cargando producto...</div>;
   if (!producto) return <div className="container my-5 text-center">Producto no encontrado.</div>;
@@ -129,6 +155,53 @@ export default function DetalleProducto() {
       <div className="row mt-5 pt-5 g-4">
         <div className="col-lg-8">
           <h3 className="fw-bold mb-4">Reseñas</h3>
+
+          {usuario ? (
+            <form onSubmit={enviarResena} className="card bg-dark text-white border-secondary mb-4 shadow-sm">
+              <div className="card-body">
+                <h6 className="fw-bold mb-3">Deja tu comentario</h6>
+                <div className="mb-3" role="radiogroup" aria-label="Calificación">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="btn btn-link p-0 me-1 fs-4"
+                      aria-label={`${i} ${i === 1 ? 'estrella' : 'estrellas'}`}
+                      aria-checked={i === calificacion}
+                      role="radio"
+                      onClick={() => setCalificacion(i)}
+                    >
+                      <i className={i <= calificacion ? 'fa-solid fa-star text-warning' : 'fa-regular fa-star text-secondary'} />
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  className="form-control mb-2"
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="Cuéntanos qué te pareció el producto"
+                  aria-label="Comentario"
+                  value={comentario}
+                  onChange={(e) => setComentario(e.target.value)}
+                />
+                <div className="d-flex justify-content-between align-items-center">
+                  <small className="text-white-50">{comentario.length}/1000</small>
+                  <button type="submit" className="btn btn-primary rounded-pill px-4" disabled={enviando || !comentario.trim()}>
+                    {enviando ? 'Publicando...' : 'Publicar comentario'}
+                  </button>
+                </div>
+                {errorResena && (
+                  <div className="alert alert-danger mt-3 mb-0 py-2" role="alert">
+                    {errorResena}
+                  </div>
+                )}
+              </div>
+            </form>
+          ) : (
+            <div className="alert alert-dark text-white-50 mb-4" role="alert">
+              <Link to="/iniciar-sesion">Inicia sesión</Link> para dejar tu comentario.
+            </div>
+          )}
           {resenas.length === 0 && (
             <div className="alert alert-dark text-white-50" role="alert">
               Este producto aún no tiene reseñas. ¡Sé el primero en opinar!

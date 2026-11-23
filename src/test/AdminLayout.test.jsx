@@ -9,6 +9,7 @@ vi.mock('../pages/Admin/AdminOrdenes', () => ({ default: () => <div>Vista ordene
 vi.mock('../pages/Admin/AdminProductos', () => ({ default: () => <div>Vista productos</div> }));
 vi.mock('../pages/Admin/AdminCategorias', () => ({ default: () => <div>Vista categorias</div> }));
 vi.mock('../pages/Admin/AdminBlogs', () => ({ default: () => <div>Vista blogs</div> }));
+vi.mock('../pages/Admin/AdminContactos', () => ({ default: () => <div>Vista contactos</div> }));
 vi.mock('../pages/Admin/AdminReportes', () => ({ default: () => <div>Vista reportes</div> }));
 vi.mock('../pages/Admin/AdminUsuarios', () => ({ default: () => <div>Vista usuarios</div> }));
 
@@ -45,6 +46,14 @@ describe('AdminLayout', () => {
     expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument();
     expect(screen.getByText('Leo · Vendedor')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Órdenes' })).toBeInTheDocument();
+  });
+
+  it('administradores y vendedores ven la sección Contactos y pueden abrirla', async () => {
+    const { user } = renderLayout({ nombre: 'Leo', tipo: 'Vendedor' });
+    await user.click(screen.getByRole('link', { name: 'Contactos' }));
+    expect(screen.getByText('Vista contactos')).toBeInTheDocument();
+    expect(screen.queryByText('Vista dashboard')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Contactos' })).toHaveClass('active');
   });
 
   it('cambiar de sección muestra solo esa vista', async () => {

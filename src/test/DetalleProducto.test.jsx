@@ -4,12 +4,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import DetalleProducto from '../pages/DetalleProducto';
 
 vi.mock('../context/CartContext', () => ({ useCart: vi.fn() }));
+vi.mock('../context/AuthContext', () => ({ useAuth: vi.fn() }));
 
 // La ficha usa ms-productos (producto y relacionados) y ms-resenas (reseñas).
 const mocks = vi.hoisted(() => ({
   producto: null, // lo que devuelve obtenerProducto: el producto, null, o un Error (404 / sin conexión)
   resenas: [], // lo que devuelve listarResenas: la lista, null, o un thenable/promesa para simular demoras y fallos
   listarResenas: vi.fn(),
+  crearResena: vi.fn(), // lo que hace crearResena (POST con JWT)
   relacionados: [], // lo que devuelve listarProductos
   listarProductos: vi.fn(),
 }));
@@ -25,9 +27,11 @@ vi.mock('../api/resenasApi', () => ({
     mocks.listarResenas(...args);
     return Promise.resolve(mocks.resenas);
   },
+  crearResena: (...args) => mocks.crearResena(...args),
 }));
 
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const mouse = {
   id: 1,
@@ -41,9 +45,11 @@ const mouse = {
   destacado: { titulo: 'Ideal para gamers', texto: 'Sensor de alta precisión.' },
 };
 
-function renderDetalle({ producto = mouse, resenas = [], relacionados = [] } = {}) {
+function renderDetalle({ producto = mouse, resenas = [], relacionados = [], usuario = null } = {}) {
   const agregarProducto = vi.fn();
   useCart.mockReturnValue({ agregarProducto });
+  useAuth.mockReturnValue({ usuario });
+  mocks.crearResena.mockReset();
   mocks.producto = producto;
   mocks.resenas = resenas;
   mocks.listarResenas.mockClear();
@@ -220,5 +226,48 @@ describe('DetalleProducto', () => {
       await tick();
       expect(screen.queryByText('Cargando producto...')).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('DetalleProducto · comentar (usuario registrado)', () => {
+  const sesion = { id: 'u1', email: 'ana@gmail.com' };
+
+  it('sin sesión invita a iniciar sesión y no muestra el formulario', async () => {
+    renderDetalle({ usuario: null });
+    await titulo();
+    expect(screen.getByRole('link', { name: 'Inicia sesión' })).toHaveAttribute('href', '/iniciar-sesion');
+    expect(screen.queryByLabelText('Comentario')).not.toBeInTheDocument();
+  });
+
+  it('con sesión muestra el formulario y publicar queda deshabilitado mientras no haya texto', async () => {
+    renderDetalle({ usuario: sesion });
+    await titulo();
+    expect(screen.getByLabelText('Comentario')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publicar comentario' })).toBeDisabled();
+  });
+
+  it('publica el comentario con la calificación elegida y lo agrega arriba de la lista', async () => {
+    const user = userEvent.setup();
+    renderDetalle({ usuario: sesion, resenas: [{ id: 1, usuario: 'Luis', calificacion: 4, comentario: 'Bueno', fecha: '2026-11-01' }] });
+    mocks.crearResena.mockResolvedValue({ id: 2, usuario: 'Ana', calificacion: 2, comentario: 'Se calienta', fecha: '2026-11-23' });
+    await titulo();
+    await user.click(screen.getByRole('radio', { name: '2 estrellas' }));
+    await user.type(screen.getByLabelText('Comentario'), '  Se calienta  ');
+    await user.click(screen.getByRole('button', { name: 'Publicar comentario' }));
+    expect(mocks.crearResena).toHaveBeenCalledWith({ producto_id: '1', calificacion: 2, comentario: 'Se calienta' });
+    expect(await screen.findByText('Se calienta')).toBeInTheDocument();
+    expect(screen.getByText('Ana')).toBeInTheDocument();
+    expect(screen.getByLabelText('Comentario')).toHaveValue('');
+  });
+
+  it('si el servicio rechaza el comentario muestra el motivo y conserva el texto', async () => {
+    const user = userEvent.setup();
+    renderDetalle({ usuario: sesion });
+    mocks.crearResena.mockRejectedValue(new Error('Tu sesión no es válida o expiró. Vuelve a iniciar sesión.'));
+    await titulo();
+    await user.type(screen.getByLabelText('Comentario'), 'Hola');
+    await user.click(screen.getByRole('button', { name: 'Publicar comentario' }));
+    expect(await screen.findByText(/Tu sesión no es válida o expiró/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Comentario')).toHaveValue('Hola');
   });
 });

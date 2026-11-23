@@ -7,6 +7,7 @@ import AdminProductos from './AdminProductos';
 import AdminCategorias from './AdminCategorias';
 import AdminUsuarios from './AdminUsuarios';
 import AdminBlogs from './AdminBlogs';
+import AdminContactos from './AdminContactos';
 import AdminReportes from './AdminReportes';
 
 const SECCIONES = [
@@ -15,6 +16,7 @@ const SECCIONES = [
   { id: 'productos', etiqueta: 'Productos', icono: 'fa-boxes-stacked' },
   { id: 'categorias', etiqueta: 'Categorías', icono: 'fa-layer-group' },
   { id: 'blogs', etiqueta: 'Blogs', icono: 'fa-blog'},
+  { id: 'contactos', etiqueta: 'Contactos', icono: 'fa-envelope' },
   { id: 'reportes', etiqueta: 'Reportes', icono: 'fa-chart-line', soloAdmin: true },
   { id: 'usuarios', etiqueta: 'Usuarios', icono: 'fa-users', soloAdmin: true },
 ];
@@ -74,6 +76,7 @@ export default function AdminLayout() {
         {seccion === 'productos' && <AdminProductos />}
         {seccion === 'categorias' && <AdminCategorias />}
         {seccion === 'blogs' && <AdminBlogs />}
+        {seccion === 'contactos' && <AdminContactos />}
         {seccion === 'reportes' && <AdminReportes />}
         {seccion === 'usuarios' && !esVendedor && <AdminUsuarios />}
       </div>
