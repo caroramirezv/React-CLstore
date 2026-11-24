@@ -1,3 +1,17 @@
-/* Registro */
-body:has(input[placeholder*="RUN"]) .container.my-5 form { background: #fff !important; color: #172033 !important; border: 1px solid var(--cl-border); border-top: 4px solid var(--cl-blue) !important; border-radius: 18px !important; }
-body:has(input[placeholder*="RUN"]) .container.my-5 .form-control, body:has(input[placeholder*="RUN"]) .container.my-5 .form-select { min-height: 44px; }
+    body:has(#registro-run) .container.my-5 h1 { color: var(--cl-ink) !important; }
+
+body:has(#registro-run) .container.my-5 form {
+  background: #fff !important;
+  color: var(--cl-ink) !important;
+  border: 1px solid var(--cl-border);
+  border-top: 4px solid var(--cl-blue) !important;
+  border-radius: 18px !important;
+}
+
+body:has(#registro-run) .container.my-5 form small.text-white-50 { color: var(--cl-muted) !important; }
+
+body:has(#registro-run) .container.my-5 form .text-light { color: var(--cl-muted) !important; }
+body:has(#registro-run) .container.my-5 form a.text-warning { color: var(--cl-blue) !important; }
+
+body:has(#registro-run) .container.my-5 .form-control,
+body:has(#registro-run) .container.my-5 .form-select { min-height: 44px; }
