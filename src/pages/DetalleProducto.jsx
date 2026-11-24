@@ -80,7 +80,7 @@ export default function DetalleProducto() {
   const { precioOriginal, precioFinal, enOferta, descuento } = calcularPrecioFinal(producto);
 
   return (
-    <div className="container my-5">
+    <div className="container my-5 detalle-producto">
       <div className="row g-4">
         <div className="col-md-5">
           <div className="border rounded p-3 shadow-sm bg-white position-relative">
