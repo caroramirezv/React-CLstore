@@ -2,7 +2,7 @@ CLstore · Frontend en React
 
 Tienda online de electrónica (CLstore) con catálogo, carrito, compra y panel de administración. Este repositorio contiene solo el frontend: toda la lógica de negocio y los datos viven en 8 microservicios Spring Boot + MySQL, que el front consume a través de la carpeta src/api/.
 
-Repositorio de los microservicios: https://github.com/sahvega-sy/Micro-and-servicios.git
+Repositorio de los microservicios: sahvega-sy/Micro-and-servicios
 
 Arquitectura
 Navegador ──▶ Frontend React (Vite / nginx)
@@ -167,4 +167,5 @@ Se usa Vitest con jsdom y React Testing Library. Hay pruebas para la capa de API
 
 bash
 npm test
+npm run coverage
 npm run coverage
